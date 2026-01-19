@@ -14,7 +14,7 @@ A production-ready full-stack application that helps you find the most cost-effe
 
 ## 🌐 Live Demo
 
-**👉 [View Live Application](https://YOUR_USERNAME.github.io/cloudcost-optimizer/)**
+**👉 [View Live Application](https://kadaliaswinkumar.github.io/cloudcost-optimizer/)**
 
 ---
 
@@ -358,8 +358,8 @@ Built as a comprehensive full-stack project showcasing:
 ## 📞 Contact
 
 For questions or feedback:
-- GitHub: [@YOUR_USERNAME](https://github.com/YOUR_USERNAME)
-- Project Link: [https://github.com/YOUR_USERNAME/cloudcost-optimizer](https://github.com/YOUR_USERNAME/cloudcost-optimizer)
+- GitHub: [@KadaliAswinkumar](https://github.com/KadaliAswinkumar)
+- Project Link: [https://github.com/KadaliAswinkumar/cloudcost-optimizer](https://github.com/KadaliAswinkumar/cloudcost-optimizer)
 
 ---
 
