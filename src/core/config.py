@@ -6,7 +6,7 @@ Loads settings from environment variables with sensible defaults.
 from functools import lru_cache
 from typing import List, Optional
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, field_validator
 
 
 class Settings(BaseSettings):
@@ -29,6 +29,14 @@ class Settings(BaseSettings):
     )
     database_pool_size: int = Field(default=20, env="DATABASE_POOL_SIZE")
     database_max_overflow: int = Field(default=10, env="DATABASE_MAX_OVERFLOW")
+    
+    @field_validator('database_url')
+    @classmethod
+    def convert_database_url(cls, v: str) -> str:
+        """Convert postgresql:// to postgresql+asyncpg:// for async support."""
+        if v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
     
     # Redis
     redis_url: str = Field(default="redis://localhost:6379/0", env="REDIS_URL")
