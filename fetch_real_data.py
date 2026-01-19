@@ -8,11 +8,7 @@ import asyncio
 import logging
 import sys
 from datetime import datetime
-from decimal import Decimal
 from typing import List, Dict
-
-from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert
 
 # Setup logging
 logging.basicConfig(
@@ -25,7 +21,7 @@ logger = logging.getLogger(__name__)
 async def main():
     """Main function to fetch all cloud data."""
     from src.core.database import get_db_context
-    from src.models.cloud_provider import CloudInstance, CloudProvider
+    from src.models.cloud_provider import CloudInstance, CloudPricing
     from src.services.aws_price_fetcher import AWSPriceFetcher
     from src.services.gcp_price_fetcher import GCPPriceFetcher
     from src.services.azure_price_fetcher import AzurePriceFetcher
@@ -44,110 +40,65 @@ async def main():
     
     start_time = datetime.now()
     
-    # ==================== AWS ====================
-    print("📊 1/3 Fetching AWS EC2 Data...")
-    print("-" * 70)
-    try:
-        aws_fetcher = AWSPriceFetcher()
-        
-        # Fetch from multiple regions
-        aws_regions = ["us-east-1", "us-west-2", "eu-west-1"]
-        
-        for region in aws_regions:
-            logger.info(f"Fetching AWS data for region: {region}")
-            
-            # Fetch on-demand pricing
-            pricing_data = await aws_fetcher.fetch_on_demand_pricing(region)
-            
-            async with get_db_context() as db:
-                for price_info in pricing_data:
-                    # Insert instance
-                    instance_data = {
-                        "provider": "aws",
-                        "instance_type": price_info["instance_type"],
-                        "vcpus": price_info.get("vcpus", 0),
-                        "memory_gb": price_info.get("memory_gb", 0),
-                        "network_performance": price_info.get("network_performance", "Unknown"),
-                        "region": region,
-                        "price_per_hour": Decimal(str(price_info["price_per_hour"])),
-                        "operating_system": price_info.get("operating_system", "Linux"),
-                        "spot_available": True,
-                        "metadata": {
-                            "tenancy": price_info.get("tenancy", "Shared"),
-                            "processor_architecture": "x86_64",
-                        }
-                    }
-                    
-                    stmt = insert(CloudInstance).values(**instance_data)
-                    stmt = stmt.on_conflict_do_update(
-                        index_elements=["provider", "instance_type", "region"],
-                        set_={
-                            "price_per_hour": instance_data["price_per_hour"],
-                            "updated_at": datetime.utcnow(),
-                        }
-                    )
-                    await db.execute(stmt)
-                    stats["aws"]["instances"] += 1
-                
-                await db.commit()
-            
-            logger.info(f"✓ AWS {region}: {len(pricing_data)} instances")
-        
-        print(f"✅ AWS: {stats['aws']['instances']} instances fetched")
-        
-    except Exception as e:
-        error_msg = f"AWS fetch failed: {str(e)}"
-        logger.error(error_msg)
-        stats["errors"].append(error_msg)
-        print(f"❌ AWS failed: {str(e)}")
-    
     # ==================== GCP ====================
-    print("\n📊 2/3 Fetching GCP Compute Engine Data...")
+    print("📊 1/3 Fetching GCP Compute Engine Data...")
     print("-" * 70)
     try:
         gcp_fetcher = GCPPriceFetcher()
         
-        # Fetch from multiple regions
+        # Fetch machine types (specs)
+        machine_types = await gcp_fetcher.fetch_machine_types()
+        
+        async with get_db_context() as db:
+            for mt in machine_types:
+                instance = CloudInstance(
+                    provider=mt["provider"],
+                    instance_type=mt["instance_type"],
+                    instance_family=mt["instance_family"],
+                    display_name=mt.get("display_name"),
+                    vcpus=mt["vcpus"],
+                    memory_gb=mt["memory_gb"],
+                    processor_architecture=mt.get("processor_architecture", "x86_64"),
+                    cpu_platform=mt.get("cpu_platform"),
+                    category=mt.get("category"),
+                    is_burstable=mt.get("is_burstable", False),
+                    supports_spot=mt.get("supports_spot", True),
+                    is_current_generation=mt.get("is_current_generation", True),
+                    gpu_count=mt.get("gpu_count"),
+                    gpu_type=mt.get("gpu_type"),
+                )
+                db.add(instance)
+                stats["gcp"]["instances"] += 1
+            
+            await db.commit()
+        
+        # Fetch pricing for multiple regions
         gcp_regions = ["us-central1", "us-west1", "europe-west1"]
         
         for region in gcp_regions:
-            logger.info(f"Fetching GCP data for region: {region}")
-            
             pricing_data = await gcp_fetcher.fetch_pricing(region)
             
             async with get_db_context() as db:
-                for price_info in pricing_data:
-                    instance_data = {
-                        "provider": "gcp",
-                        "instance_type": price_info["instance_type"],
-                        "vcpus": price_info.get("vcpus", 0),
-                        "memory_gb": price_info.get("memory_gb", 0),
-                        "network_performance": "Standard",
-                        "region": region,
-                        "price_per_hour": Decimal(str(price_info["price_per_hour"])),
-                        "operating_system": "Linux",
-                        "spot_available": price_info.get("spot_available", True),
-                        "metadata": {
-                            "machine_family": price_info.get("machine_family", "general"),
-                        }
-                    }
-                    
-                    stmt = insert(CloudInstance).values(**instance_data)
-                    stmt = stmt.on_conflict_do_update(
-                        index_elements=["provider", "instance_type", "region"],
-                        set_={
-                            "price_per_hour": instance_data["price_per_hour"],
-                            "updated_at": datetime.utcnow(),
-                        }
+                for price in pricing_data:
+                    pricing = CloudPricing(
+                        provider=price["provider"],
+                        instance_type=price["instance_type"],
+                        region=price["region"],
+                        pricing_type=price["pricing_type"],
+                        os_type=price.get("os_type", "linux"),
+                        hourly_price=price["hourly_price"],
+                        monthly_price=price.get("monthly_price"),
+                        commitment_term=price.get("commitment_term"),
+                        currency=price.get("currency", "USD"),
+                        effective_date=price.get("effective_date", datetime.utcnow()),
                     )
-                    await db.execute(stmt)
-                    stats["gcp"]["instances"] += 1
+                    db.add(pricing)
+                    stats["gcp"]["pricing"] += 1
                 
                 await db.commit()
-            
-            logger.info(f"✓ GCP {region}: {len(pricing_data)} instances")
         
-        print(f"✅ GCP: {stats['gcp']['instances']} instances fetched")
+        logger.info(f"✓ GCP: {stats['gcp']['instances']} instances, {stats['gcp']['pricing']} pricing records")
+        print(f"✅ GCP: {stats['gcp']['instances']} instances, {stats['gcp']['pricing']} pricing records")
         
     except Exception as e:
         error_msg = f"GCP fetch failed: {str(e)}"
@@ -156,58 +107,134 @@ async def main():
         print(f"❌ GCP failed: {str(e)}")
     
     # ==================== AZURE ====================
-    print("\n📊 3/3 Fetching Azure Virtual Machines Data...")
+    print("\n📊 2/3 Fetching Azure Virtual Machines Data...")
     print("-" * 70)
     try:
         azure_fetcher = AzurePriceFetcher()
         
-        # Fetch from multiple regions
+        # Fetch VM sizes (specs)
+        vm_sizes = await azure_fetcher.fetch_vm_sizes()
+        
+        async with get_db_context() as db:
+            for vm in vm_sizes:
+                instance = CloudInstance(
+                    provider=vm["provider"],
+                    instance_type=vm["instance_type"],
+                    instance_family=vm["instance_family"],
+                    display_name=vm.get("display_name"),
+                    vcpus=vm["vcpus"],
+                    memory_gb=vm["memory_gb"],
+                    processor_architecture=vm.get("processor_architecture", "x86_64"),
+                    local_ssd_gb=vm.get("local_ssd_gb"),
+                    storage_type=vm.get("storage_type", "Premium SSD"),
+                    category=vm.get("category"),
+                    is_burstable=vm.get("is_burstable", False),
+                    supports_spot=vm.get("supports_spot", True),
+                    is_current_generation=vm.get("is_current_generation", True),
+                    gpu_count=vm.get("gpu_count"),
+                    gpu_type=vm.get("gpu_type"),
+                )
+                db.add(instance)
+                stats["azure"]["instances"] += 1
+            
+            await db.commit()
+        
+        # Fetch pricing for multiple regions
         azure_regions = ["eastus", "westus2", "westeurope"]
         
         for region in azure_regions:
-            logger.info(f"Fetching Azure data for region: {region}")
-            
             pricing_data = await azure_fetcher.fetch_pricing(region)
             
             async with get_db_context() as db:
-                for price_info in pricing_data:
-                    instance_data = {
-                        "provider": "azure",
-                        "instance_type": price_info["instance_type"],
-                        "vcpus": price_info.get("vcpus", 0),
-                        "memory_gb": price_info.get("memory_gb", 0),
-                        "network_performance": "Standard",
-                        "region": region,
-                        "price_per_hour": Decimal(str(price_info["price_per_hour"])),
-                        "operating_system": "Linux",
-                        "spot_available": price_info.get("spot_available", False),
-                        "metadata": {
-                            "vm_family": price_info.get("vm_family", "general"),
-                        }
-                    }
-                    
-                    stmt = insert(CloudInstance).values(**instance_data)
-                    stmt = stmt.on_conflict_do_update(
-                        index_elements=["provider", "instance_type", "region"],
-                        set_={
-                            "price_per_hour": instance_data["price_per_hour"],
-                            "updated_at": datetime.utcnow(),
-                        }
+                for price in pricing_data:
+                    pricing = CloudPricing(
+                        provider=price["provider"],
+                        instance_type=price["instance_type"],
+                        region=price["region"],
+                        pricing_type=price["pricing_type"],
+                        os_type=price.get("os_type", "linux"),
+                        hourly_price=price["hourly_price"],
+                        monthly_price=price.get("monthly_price"),
+                        commitment_term=price.get("commitment_term"),
+                        currency=price.get("currency", "USD"),
+                        effective_date=price.get("effective_date", datetime.utcnow()),
                     )
-                    await db.execute(stmt)
-                    stats["azure"]["instances"] += 1
+                    db.add(pricing)
+                    stats["azure"]["pricing"] += 1
                 
                 await db.commit()
-            
-            logger.info(f"✓ Azure {region}: {len(pricing_data)} instances")
         
-        print(f"✅ Azure: {stats['azure']['instances']} instances fetched")
+        logger.info(f"✓ Azure: {stats['azure']['instances']} instances, {stats['azure']['pricing']} pricing records")
+        print(f"✅ Azure: {stats['azure']['instances']} instances, {stats['azure']['pricing']} pricing records")
         
     except Exception as e:
         error_msg = f"Azure fetch failed: {str(e)}"
         logger.error(error_msg)
         stats["errors"].append(error_msg)
         print(f"❌ Azure failed: {str(e)}")
+    
+    # ==================== AWS ====================
+    print("\n📊 3/3 Fetching AWS EC2 Data...")
+    print("-" * 70)
+    try:
+        aws_fetcher = AWSPriceFetcher()
+        
+        # Fetch instance types (specs)
+        instance_types = await aws_fetcher.fetch_instance_types()
+        
+        async with get_db_context() as db:
+            for it in instance_types:
+                instance = CloudInstance(
+                    provider="aws",
+                    instance_type=it["instance_type"],
+                    instance_family=it["instance_family"],
+                    display_name=it.get("instance_type"),
+                    vcpus=it["vcpus"],
+                    memory_gb=it["memory_gb"],
+                    processor_architecture=it.get("processor_architecture", "x86_64"),
+                    storage_type=it.get("storage_type"),
+                    category="general_purpose",
+                    is_current_generation=it.get("current_generation", True),
+                    supports_spot=True,
+                )
+                db.add(instance)
+                stats["aws"]["instances"] += 1
+            
+            await db.commit()
+        
+        # Fetch pricing for multiple regions
+        aws_regions = ["us-east-1", "us-west-2", "eu-west-1"]
+        
+        for region in aws_regions:
+            # Fetch on-demand pricing
+            pricing_data = await aws_fetcher.fetch_on_demand_pricing(region)
+            
+            async with get_db_context() as db:
+                for price in pricing_data:
+                    pricing = CloudPricing(
+                        provider="aws",
+                        instance_type=price["instance_type"],
+                        region=price["region"],
+                        pricing_type="on_demand",
+                        os_type=price.get("operating_system", "Linux").lower(),
+                        hourly_price=price["price_per_hour"],
+                        monthly_price=price["price_per_hour"] * 730,
+                        currency="USD",
+                        effective_date=price.get("effective_date", datetime.utcnow()),
+                    )
+                    db.add(pricing)
+                    stats["aws"]["pricing"] += 1
+                
+                await db.commit()
+        
+        logger.info(f"✓ AWS: {stats['aws']['instances']} instances, {stats['aws']['pricing']} pricing records")
+        print(f"✅ AWS: {stats['aws']['instances']} instances, {stats['aws']['pricing']} pricing records")
+        
+    except Exception as e:
+        error_msg = f"AWS fetch failed: {str(e)}"
+        logger.error(error_msg)
+        stats["errors"].append(error_msg)
+        print(f"❌ AWS failed: {str(e)}")
     
     # ==================== SUMMARY ====================
     end_time = datetime.now()
@@ -216,10 +243,10 @@ async def main():
     print("\n" + "="*70)
     print("📈 FETCH COMPLETE")
     print("="*70)
-    print(f"AWS Instances:   {stats['aws']['instances']}")
-    print(f"GCP Instances:   {stats['gcp']['instances']}")
-    print(f"Azure Instances: {stats['azure']['instances']}")
-    print(f"Total Time:      {stats['total_time']:.1f}s")
+    print(f"GCP:   {stats['gcp']['instances']} instances, {stats['gcp']['pricing']} pricing records")
+    print(f"Azure: {stats['azure']['instances']} instances, {stats['azure']['pricing']} pricing records")
+    print(f"AWS:   {stats['aws']['instances']} instances, {stats['aws']['pricing']} pricing records")
+    print(f"Total Time: {stats['total_time']:.1f}s")
     
     if stats["errors"]:
         print(f"\n⚠️  Errors encountered: {len(stats['errors'])}")
@@ -227,12 +254,15 @@ async def main():
             print(f"  - {error}")
     
     # Count total instances in DB
+    from sqlalchemy import select, func
     async with get_db_context() as db:
-        result = await db.execute(select(CloudInstance))
-        total_in_db = len(result.all())
-        print(f"\n✅ Total instances in database: {total_in_db}")
+        result = await db.execute(select(func.count()).select_from(CloudInstance))
+        total_instances = result.scalar()
+        result = await db.execute(select(func.count()).select_from(CloudPricing))
+        total_pricing = result.scalar()
+        print(f"\n✅ Total in database: {total_instances} instances, {total_pricing} pricing records")
     
-    print("\n🎉 Data fetch complete! Your app now has real pricing data.")
+    print("\n🎉 Data fetch complete!")
     print("="*70 + "\n")
 
 
