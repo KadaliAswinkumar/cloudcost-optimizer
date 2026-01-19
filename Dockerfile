@@ -32,6 +32,8 @@ USER appuser
 # Expose port
 EXPOSE 8000
 
-# Default command
-CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Default command - Run migrations, seed data, then start server
+CMD alembic upgrade head && \
+    python -c "from src.jobs.price_updater import seed_sample_data; seed_sample_data()" || true && \
+    uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8000}
 

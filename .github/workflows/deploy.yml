@@ -36,6 +36,8 @@ jobs:
           npm ci
           
       - name: Build
+        env:
+          VITE_API_URL: https://cloudcost-api.onrender.com
         run: |
           cd frontend
           npm run build

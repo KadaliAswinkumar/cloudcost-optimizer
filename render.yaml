@@ -1,0 +1,36 @@
+# Render.com deployment configuration for CloudCost Optimizer Backend
+services:
+  # FastAPI Backend API
+  - type: web
+    name: cloudcost-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cloudcost-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: cloudcost-redis
+          property: connectionString
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: false
+      - key: ALLOWED_ORIGINS
+        value: https://kadaliaswinkumar.github.io
+
+databases:
+  # PostgreSQL Database (Free tier)
+  - name: cloudcost-db
+    databaseName: cloudcost
+    user: cloudcost
+    plan: free
+
+  # Redis Cache (Free tier)
+  - name: cloudcost-redis
+    plan: free
