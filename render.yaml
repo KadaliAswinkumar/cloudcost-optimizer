@@ -7,6 +7,8 @@ services:
     dockerfilePath: ./Dockerfile
     plan: free
     healthCheckPath: /health
+    # Auto-load real data on deployment
+    preDeployCommand: python fetch_real_data.py || echo "Data fetch failed, continuing..."
     envVars:
       - key: DATABASE_URL
         fromDatabase:
