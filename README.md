@@ -173,6 +173,51 @@ npm run dev
 
 ---
 
+## 🌐 Fetching Real Cloud Data
+
+By default, the application includes sample pricing data. To fetch **real, live pricing** from AWS, GCP, and Azure:
+
+### Quick Setup (Local)
+
+```bash
+# 1. Set up AWS credentials in .env
+AWS_ACCESS_KEY_ID=your_access_key_here
+AWS_SECRET_ACCESS_KEY=your_secret_key_here
+AWS_DEFAULT_REGION=us-east-1
+
+# 2. Run the data fetcher
+python fetch_real_data.py
+```
+
+This will fetch:
+- ✅ **600+ AWS EC2 instances** from AWS Pricing API
+- ✅ **50+ GCP Compute Engine instances** from public APIs (no credentials needed)
+- ✅ **60+ Azure VM instances** from public APIs (no credentials needed)
+
+**Fetch time**: 10-15 minutes for the first run.
+
+### AWS Credentials Setup
+
+1. **Create AWS Free Account**: https://aws.amazon.com/free (credit card required but won't be charged)
+2. **Create IAM User** in AWS Console with **AWSPriceListServiceFullAccess** policy
+3. **Generate Access Keys** for the IAM user
+4. **Add credentials** to `.env` file
+
+📖 **Detailed guide**: See [SETUP_REAL_DATA.md](./SETUP_REAL_DATA.md)
+
+### For Render Deployment
+
+1. Go to Render Dashboard → your **cloudcost-api** service
+2. Add environment variables: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`
+3. Open Shell tab and run:
+```bash
+python -c "from src.jobs.price_updater import update_all_prices; update_all_prices()"
+```
+
+**Note**: AWS Pricing API is **100% FREE**. No charges for reading pricing data!
+
+---
+
 ## 📚 API Documentation
 
 ### Key Endpoints
