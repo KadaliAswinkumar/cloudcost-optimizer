@@ -12,11 +12,6 @@ services:
         fromDatabase:
           name: cloudcost-db
           property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: cloudcost-redis
-          property: connectionString
       - key: APP_ENV
         value: production
       - key: DEBUG
@@ -29,8 +24,4 @@ databases:
   - name: cloudcost-db
     databaseName: cloudcost
     user: cloudcost
-    plan: free
-
-  # Redis Cache (Free tier)
-  - name: cloudcost-redis
     plan: free
