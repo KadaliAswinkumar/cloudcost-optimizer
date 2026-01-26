@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { 
   Search, 
   Filter, 
@@ -6,35 +6,11 @@ import {
   Cpu, 
   MemoryStick,
   ChevronDown,
-  X
+  X,
+  Loader2
 } from 'lucide-react'
 import CloudBadge from '../components/CloudBadge'
-
-// Mock data - would come from API
-const mockInstances = [
-  { provider: 'aws', instance_type: 't3.micro', vcpus: 2, memory_gb: 1, category: 'general_purpose', price: 0.0104 },
-  { provider: 'aws', instance_type: 't3.small', vcpus: 2, memory_gb: 2, category: 'general_purpose', price: 0.0208 },
-  { provider: 'aws', instance_type: 't3.medium', vcpus: 2, memory_gb: 4, category: 'general_purpose', price: 0.0416 },
-  { provider: 'aws', instance_type: 't3.large', vcpus: 2, memory_gb: 8, category: 'general_purpose', price: 0.0832 },
-  { provider: 'aws', instance_type: 'm5.large', vcpus: 2, memory_gb: 8, category: 'general_purpose', price: 0.096 },
-  { provider: 'aws', instance_type: 'm5.xlarge', vcpus: 4, memory_gb: 16, category: 'general_purpose', price: 0.192 },
-  { provider: 'aws', instance_type: 'c5.large', vcpus: 2, memory_gb: 4, category: 'compute_optimized', price: 0.085 },
-  { provider: 'aws', instance_type: 'c5.xlarge', vcpus: 4, memory_gb: 8, category: 'compute_optimized', price: 0.17 },
-  { provider: 'aws', instance_type: 'r5.large', vcpus: 2, memory_gb: 16, category: 'memory_optimized', price: 0.126 },
-  { provider: 'gcp', instance_type: 'e2-micro', vcpus: 0.25, memory_gb: 1, category: 'general_purpose', price: 0.0084 },
-  { provider: 'gcp', instance_type: 'e2-small', vcpus: 0.5, memory_gb: 2, category: 'general_purpose', price: 0.0168 },
-  { provider: 'gcp', instance_type: 'e2-medium', vcpus: 1, memory_gb: 4, category: 'general_purpose', price: 0.0335 },
-  { provider: 'gcp', instance_type: 'e2-standard-2', vcpus: 2, memory_gb: 8, category: 'general_purpose', price: 0.067 },
-  { provider: 'gcp', instance_type: 'e2-standard-4', vcpus: 4, memory_gb: 16, category: 'general_purpose', price: 0.134 },
-  { provider: 'gcp', instance_type: 'n2-standard-2', vcpus: 2, memory_gb: 8, category: 'general_purpose', price: 0.097 },
-  { provider: 'gcp', instance_type: 'c2-standard-4', vcpus: 4, memory_gb: 16, category: 'compute_optimized', price: 0.209 },
-  { provider: 'azure', instance_type: 'Standard_B1s', vcpus: 1, memory_gb: 1, category: 'general_purpose', price: 0.0104 },
-  { provider: 'azure', instance_type: 'Standard_B2s', vcpus: 2, memory_gb: 4, category: 'general_purpose', price: 0.0416 },
-  { provider: 'azure', instance_type: 'Standard_D2s_v4', vcpus: 2, memory_gb: 8, category: 'general_purpose', price: 0.096 },
-  { provider: 'azure', instance_type: 'Standard_D4s_v4', vcpus: 4, memory_gb: 16, category: 'general_purpose', price: 0.192 },
-  { provider: 'azure', instance_type: 'Standard_F2s_v2', vcpus: 2, memory_gb: 4, category: 'compute_optimized', price: 0.0846 },
-  { provider: 'azure', instance_type: 'Standard_E2s_v4', vcpus: 2, memory_gb: 16, category: 'memory_optimized', price: 0.126 },
-]
+import { api } from '../api/client'
 
 const categories = [
   { id: 'all', name: 'All Categories' },
@@ -56,9 +32,34 @@ export default function InstanceFinder() {
     maxMemory: '',
   })
   const [showFilters, setShowFilters] = useState(false)
+  const [instances, setInstances] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  // Fetch instances from API
+  useEffect(() => {
+    const fetchInstances = async () => {
+      try {
+        setLoading(true)
+        const response = await api.getMulticloudInstances({ limit: 5000 })
+        const instancesWithPrice = response.data.instances.map(instance => ({
+          ...instance,
+          price: instance.hourly_price || 0
+        }))
+        setInstances(instancesWithPrice)
+        setError(null)
+      } catch (err) {
+        console.error('Failed to fetch instances:', err)
+        setError('Failed to load instances. Please try again.')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchInstances()
+  }, [])
 
   const filteredInstances = useMemo(() => {
-    return mockInstances.filter(instance => {
+    return instances.filter(instance => {
       // Provider filter
       if (!selectedProviders.includes(instance.provider)) return false
       
@@ -107,7 +108,7 @@ export default function InstanceFinder() {
           Instance Finder
         </h1>
         <p className="text-slate-400 mt-2">
-          Search and compare {mockInstances.length}+ instance types across AWS, GCP, and Azure.
+          Search and compare {instances.length}+ instance types across AWS, GCP, and Azure.
         </p>
       </div>
 
@@ -237,6 +238,20 @@ export default function InstanceFinder() {
 
       {/* Results table */}
       <div className="glass-card overflow-hidden">
+        {loading ? (
+          <div className="p-12 text-center">
+            <Loader2 className="w-12 h-12 text-blue-400 mx-auto mb-4 animate-spin" />
+            <p className="text-slate-400">Loading instances...</p>
+          </div>
+        ) : error ? (
+          <div className="p-12 text-center">
+            <Server className="w-12 h-12 text-red-600 mx-auto mb-4" />
+            <p className="text-slate-400 mb-2">{error}</p>
+            <button onClick={() => window.location.reload()} className="text-primary-400 text-sm hover:underline">
+              Retry
+            </button>
+          </div>
+        ) : (
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -303,16 +318,17 @@ export default function InstanceFinder() {
               ))}
             </tbody>
           </table>
-        </div>
 
-        {filteredInstances.length === 0 && (
-          <div className="p-12 text-center">
-            <Server className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-            <p className="text-slate-400">No instances match your filters</p>
-            <button onClick={clearFilters} className="text-primary-400 text-sm mt-2 hover:underline">
-              Clear filters
-            </button>
-          </div>
+          {filteredInstances.length === 0 && (
+            <div className="p-12 text-center">
+              <Server className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+              <p className="text-slate-400">No instances match your filters</p>
+              <button onClick={clearFilters} className="text-primary-400 text-sm mt-2 hover:underline">
+                Clear filters
+              </button>
+            </div>
+          )}
+        </div>
         )}
       </div>
     </div>

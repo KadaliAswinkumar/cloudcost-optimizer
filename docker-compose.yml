@@ -14,6 +14,9 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/1
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - AWS_ACCESS_KEY_ID=AKIASOVOVV6I4EGP5VYA
+      - AWS_SECRET_ACCESS_KEY=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
+      - AWS_DEFAULT_REGION=us-east-1
     depends_on:
       db:
         condition: service_healthy
@@ -36,6 +39,9 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/1
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - AWS_ACCESS_KEY_ID=AKIASOVOVV6I4EGP5VYA
+      - AWS_SECRET_ACCESS_KEY=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
+      - AWS_DEFAULT_REGION=us-east-1
     depends_on:
       db:
         condition: service_healthy

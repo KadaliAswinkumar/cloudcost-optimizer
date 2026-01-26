@@ -109,7 +109,7 @@ async def list_multicloud_instances(
     max_memory: Optional[float] = Query(None, description="Maximum memory GB"),
     category: Optional[str] = Query(None, description="Instance category"),
     has_gpu: Optional[bool] = Query(None, description="Filter for GPU instances"),
-    limit: int = Query(50, le=200, description="Maximum results"),
+    limit: int = Query(50, le=10000, description="Maximum results"),
     offset: int = Query(0, description="Offset for pagination"),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -156,11 +156,31 @@ async def list_multicloud_instances(
     result = await db.execute(query)
     instances = result.scalars().all()
     
+    # Fetch pricing for all instances (get cheapest on-demand pricing per instance)
+    instance_data = []
+    for instance in instances:
+        pricing_query = select(CloudPricing).where(
+            CloudPricing.provider == instance.provider,
+            CloudPricing.instance_type == instance.instance_type,
+            CloudPricing.pricing_type == "on_demand"
+        ).order_by(CloudPricing.hourly_price).limit(1)
+        
+        pricing_result = await db.execute(pricing_query)
+        pricing = pricing_result.scalar_one_or_none()
+        
+        instance_dict = instance.to_dict()
+        if pricing:
+            instance_dict["hourly_price"] = float(pricing.hourly_price)
+        else:
+            instance_dict["hourly_price"] = 0.0
+        
+        instance_data.append(instance_dict)
+    
     return {
         "total": total,
         "limit": limit,
         "offset": offset,
-        "instances": [i.to_dict() for i in instances],
+        "instances": instance_data,
     }
 
 
