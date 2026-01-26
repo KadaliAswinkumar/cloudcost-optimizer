@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { 
   Calculator, 
   DollarSign, 
@@ -6,70 +6,117 @@ import {
   Calendar,
   Server,
   TrendingDown,
-  Info
+  Info,
+  Loader2
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import CloudBadge from '../components/CloudBadge'
+import { api } from '../api/client'
 
 export default function CostCalculator() {
   const [config, setConfig] = useState({
     provider: 'aws',
-    instanceType: 'm5.large',
+    instanceType: '',
     count: 3,
     hoursPerDay: 24,
     daysPerMonth: 30,
     pricingStrategy: 'on_demand',
   })
 
-  // Mock pricing data
-  const instancePricing = {
-    aws: {
-      'm5.large': { onDemand: 0.096, spot: 0.038, reserved1yr: 0.060, reserved3yr: 0.043 },
-      'm5.xlarge': { onDemand: 0.192, spot: 0.077, reserved1yr: 0.121, reserved3yr: 0.086 },
-      't3.large': { onDemand: 0.0832, spot: 0.025, reserved1yr: 0.052, reserved3yr: 0.037 },
-    },
-    gcp: {
-      'e2-standard-2': { onDemand: 0.067, spot: 0.020, reserved1yr: 0.042, reserved3yr: 0.030 },
-      'e2-standard-4': { onDemand: 0.134, spot: 0.040, reserved1yr: 0.085, reserved3yr: 0.060 },
-      'n2-standard-2': { onDemand: 0.097, spot: 0.029, reserved1yr: 0.061, reserved3yr: 0.044 },
-    },
-    azure: {
-      'Standard_D2s_v4': { onDemand: 0.096, spot: 0.034, reserved1yr: 0.062, reserved3yr: 0.043 },
-      'Standard_D4s_v4': { onDemand: 0.192, spot: 0.067, reserved1yr: 0.125, reserved3yr: 0.086 },
-      'Standard_B2s': { onDemand: 0.042, spot: 0.013, reserved1yr: 0.027, reserved3yr: 0.019 },
-    },
-  }
+  const [allInstances, setAllInstances] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const instances = Object.keys(instancePricing[config.provider])
+  // Fetch all instances from API
+  useEffect(() => {
+    const fetchInstances = async () => {
+      try {
+        setLoading(true)
+        const response = await api.getMulticloudInstances({ limit: 5000 })
+        setAllInstances(response.data.instances)
+        
+        // Set default instance type for selected provider
+        const providerInstances = response.data.instances.filter(i => i.provider === config.provider)
+        if (providerInstances.length > 0 && !config.instanceType) {
+          setConfig(prev => ({ ...prev, instanceType: providerInstances[0].instance_type }))
+        }
+      } catch (error) {
+        console.error('Failed to fetch instances:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchInstances()
+  }, [])
+
+  // Get instances for selected provider
+  const instances = useMemo(() => {
+    return allInstances
+      .filter(i => i.provider === config.provider)
+      .sort((a, b) => {
+        // Sort by vCPUs, then memory
+        if (a.vcpus !== b.vcpus) return a.vcpus - b.vcpus
+        return a.memory_gb - b.memory_gb
+      })
+  }, [allInstances, config.provider])
+
+  // Get current instance details
+  const currentInstance = useMemo(() => {
+    return instances.find(i => i.instance_type === config.instanceType)
+  }, [instances, config.instanceType])
 
   const costs = useMemo(() => {
-    const pricing = instancePricing[config.provider][config.instanceType]
-    if (!pricing) return null
+    if (!currentInstance) return null
 
     const hoursPerMonth = config.hoursPerDay * config.daysPerMonth
-    const hourlyRate = pricing[config.pricingStrategy === 'on_demand' ? 'onDemand' : 
-                               config.pricingStrategy === 'spot' ? 'spot' :
-                               config.pricingStrategy === 'reserved_1yr' ? 'reserved1yr' : 'reserved3yr']
+    let baseHourlyRate = currentInstance.hourly_price || 0
+    let isEstimated = false
 
+    // If no pricing data, estimate based on instance specs
+    if (baseHourlyRate === 0 && currentInstance.vcpus && currentInstance.memory_gb) {
+      isEstimated = true
+      // Rough estimation: $0.04 per vCPU + $0.005 per GB RAM (typical AWS pricing)
+      baseHourlyRate = (currentInstance.vcpus * 0.04) + (currentInstance.memory_gb * 0.005)
+      
+      // Adjust based on category
+      if (currentInstance.category === 'compute_optimized') {
+        baseHourlyRate *= 1.1  // Compute optimized slightly more expensive
+      } else if (currentInstance.category === 'memory_optimized') {
+        baseHourlyRate *= 1.3  // Memory optimized more expensive
+      } else if (currentInstance.category === 'storage_optimized') {
+        baseHourlyRate *= 1.2
+      }
+    }
+    
+    // Apply discounts based on pricing strategy
+    // Spot: ~60% discount, Reserved 1yr: ~35% discount, Reserved 3yr: ~55% discount
+    const discountMultipliers = {
+      'on_demand': 1.0,
+      'spot': 0.4,
+      'reserved_1yr': 0.65,
+      'reserved_3yr': 0.45,
+    }
+    
+    const hourlyRate = baseHourlyRate * discountMultipliers[config.pricingStrategy]
     const hourly = hourlyRate * config.count
     const monthly = hourly * hoursPerMonth
     const annual = monthly * 12
 
     // Compare with on-demand
-    const onDemandMonthly = pricing.onDemand * config.count * hoursPerMonth
+    const onDemandMonthly = baseHourlyRate * config.count * hoursPerMonth
     const savings = onDemandMonthly - monthly
     const savingsPercent = (savings / onDemandMonthly) * 100
 
     return {
-      hourly: hourly.toFixed(2),
+      hourly: hourly.toFixed(4),
       daily: (hourly * config.hoursPerDay).toFixed(2),
       monthly: monthly.toFixed(2),
       annual: annual.toFixed(2),
       savings: savings.toFixed(2),
       savingsPercent: savingsPercent.toFixed(1),
       hoursPerMonth,
+      isEstimated,
     }
-  }, [config])
+  }, [config, currentInstance])
 
   // Projection data for chart
   const projectionData = useMemo(() => {
@@ -116,11 +163,14 @@ export default function CostCalculator() {
                 {['aws', 'gcp', 'azure'].map((provider) => (
                   <button
                     key={provider}
-                    onClick={() => setConfig({ 
-                      ...config, 
-                      provider,
-                      instanceType: Object.keys(instancePricing[provider])[0]
-                    })}
+                    onClick={() => {
+                      const providerInstances = allInstances.filter(i => i.provider === provider)
+                      setConfig({ 
+                        ...config, 
+                        provider,
+                        instanceType: providerInstances.length > 0 ? providerInstances[0].instance_type : ''
+                      })
+                    }}
                     className={`
                       flex-1 py-2 rounded-lg border transition-all
                       ${config.provider === provider 
@@ -137,16 +187,30 @@ export default function CostCalculator() {
 
             {/* Instance Type */}
             <div>
-              <label className="text-sm text-slate-400 mb-2 block">Instance Type</label>
-              <select
-                value={config.instanceType}
-                onChange={(e) => setConfig({ ...config, instanceType: e.target.value })}
-                className="input-field"
-              >
-                {instances.map(inst => (
-                  <option key={inst} value={inst}>{inst}</option>
-                ))}
-              </select>
+              <label className="text-sm text-slate-400 mb-2 block">
+                Instance Type
+                {loading && <Loader2 className="inline-block w-3 h-3 ml-2 animate-spin" />}
+              </label>
+              {loading ? (
+                <div className="input-field flex items-center justify-center text-slate-400">
+                  Loading instances...
+                </div>
+              ) : (
+                <select
+                  value={config.instanceType}
+                  onChange={(e) => setConfig({ ...config, instanceType: e.target.value })}
+                  className="input-field"
+                >
+                  {instances.map(inst => (
+                    <option key={inst.instance_type} value={inst.instance_type}>
+                      {inst.instance_type} ({inst.vcpus} vCPUs, {inst.memory_gb}GB RAM)
+                    </option>
+                  ))}
+                </select>
+              )}
+              <p className="text-xs text-slate-500 mt-1">
+                {instances.length} instances available for {config.provider.toUpperCase()}
+              </p>
             </div>
 
             {/* Instance Count */}
@@ -226,8 +290,31 @@ export default function CostCalculator() {
 
         {/* Results */}
         <div className="lg:col-span-2 space-y-6">
-          {costs && (
+          {loading ? (
+            <div className="glass-card p-12 flex flex-col items-center justify-center">
+              <Loader2 className="w-12 h-12 text-blue-400 animate-spin mb-4" />
+              <p className="text-slate-400">Loading instances...</p>
+            </div>
+          ) : !costs ? (
+            <div className="glass-card p-12 flex flex-col items-center justify-center">
+              <Server className="w-12 h-12 text-slate-600 mb-4" />
+              <p className="text-slate-400">Select an instance type to calculate costs</p>
+            </div>
+          ) : (
             <>
+              {/* Estimated Pricing Notice */}
+              {costs.isEstimated && (
+                <div className="glass-card p-4 border-yellow-500/30 bg-yellow-500/5">
+                  <div className="flex items-center gap-2">
+                    <Info className="w-5 h-5 text-yellow-400 flex-shrink-0" />
+                    <p className="text-sm text-yellow-200">
+                      <span className="font-semibold">Estimated Pricing:</span> These costs are estimated based on instance specifications. 
+                      {config.provider === 'aws' && ' AWS pricing data will be available once API credentials are configured.'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Cost Summary */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="glass-card p-4">
@@ -275,6 +362,22 @@ export default function CostCalculator() {
                     <span className="text-slate-400">Instance Type</span>
                     <span className="text-white font-mono">{config.instanceType}</span>
                   </div>
+                  {currentInstance && (
+                    <>
+                      <div className="flex justify-between py-2 border-b border-slate-800">
+                        <span className="text-slate-400">vCPUs</span>
+                        <span className="text-white">{currentInstance.vcpus}</span>
+                      </div>
+                      <div className="flex justify-between py-2 border-b border-slate-800">
+                        <span className="text-slate-400">Memory</span>
+                        <span className="text-white">{currentInstance.memory_gb} GB</span>
+                      </div>
+                      <div className="flex justify-between py-2 border-b border-slate-800">
+                        <span className="text-slate-400">Category</span>
+                        <span className="text-white capitalize">{currentInstance.category?.replace('_', ' ')}</span>
+                      </div>
+                    </>
+                  )}
                   <div className="flex justify-between py-2 border-b border-slate-800">
                     <span className="text-slate-400">Number of Instances</span>
                     <span className="text-white">{config.count}</span>
