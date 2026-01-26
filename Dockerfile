@@ -32,8 +32,8 @@ USER appuser
 # Expose port
 EXPOSE 8000
 
-# Default command - Run migrations, seed data, then start server
+# Default command - Run migrations, load real data, then start server
 CMD alembic upgrade head && \
-    python -c "from src.jobs.price_updater import seed_sample_data; seed_sample_data()" || true && \
+    python fetch_real_data.py || echo "Data fetch failed, using existing data" && \
     uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8000}
 
