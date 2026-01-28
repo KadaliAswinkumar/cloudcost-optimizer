@@ -16,6 +16,66 @@ from src.services.multicloud_recommender import MultiCloudRecommender, MultiClou
 router = APIRouter(prefix="/multicloud", tags=["Multi-Cloud"])
 
 
+@router.get("/stats")
+async def get_cloud_stats(
+    provider: Optional[str] = Query(None, description="Filter by provider (aws, gcp, azure)"),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """
+    Get statistics about available cloud instances and pricing.
+    
+    Args:
+        provider: Optional provider filter (aws, gcp, azure)
+        
+    Returns:
+        Statistics including instance counts, regions, and pricing data
+    """
+    from sqlalchemy import and_, distinct
+    
+    # Build base query
+    conditions = []
+    if provider:
+        conditions.append(CloudInstance.provider == provider)
+    
+    base_where = and_(*conditions) if conditions else True
+    
+    # Get instance counts by provider
+    provider_counts_query = select(
+        CloudInstance.provider,
+        func.count(CloudInstance.id).label("count")
+    ).where(base_where).group_by(CloudInstance.provider)
+    
+    result = await db.execute(provider_counts_query)
+    provider_counts = {row.provider: row.count for row in result.all()}
+    
+    # Get total instances
+    total_query = select(func.count(CloudInstance.id)).where(base_where)
+    total_result = await db.execute(total_query)
+    total_instances = total_result.scalar() or 0
+    
+    # Get unique regions count
+    regions_query = select(func.count(distinct(CloudPricing.region)))
+    if provider:
+        regions_query = regions_query.where(CloudPricing.provider == provider)
+    regions_result = await db.execute(regions_query)
+    regions_count = regions_result.scalar() or 0
+    
+    # Get pricing records count
+    pricing_query = select(func.count(CloudPricing.id))
+    if provider:
+        pricing_query = pricing_query.where(CloudPricing.provider == provider)
+    pricing_result = await db.execute(pricing_query)
+    pricing_count = pricing_result.scalar() or 0
+    
+    return {
+        "total_instances": total_instances,
+        "by_provider": provider_counts,
+        "total_regions": regions_count,
+        "total_pricing_records": pricing_count,
+        "filter": provider or "all",
+    }
+
+
 class MultiCloudRecommendationRequest(BaseModel):
     """Request model for multi-cloud recommendations."""
     

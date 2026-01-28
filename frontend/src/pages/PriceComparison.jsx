@@ -1,51 +1,71 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   GitCompare, 
   ArrowRight,
   DollarSign,
   TrendingDown,
   Check,
-  Info
+  Info,
+  Loader2
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import CloudBadge from '../components/CloudBadge'
+import { api } from '../api/client'
 
 export default function PriceComparison() {
   const [specs, setSpecs] = useState({ vcpus: 4, memory_gb: 16 })
-  
-  // Mock comparison data
-  const comparisonData = [
-    { 
-      provider: 'gcp', 
-      name: 'GCP', 
-      instance: 'e2-standard-4',
-      onDemand: 98,
-      spot: 29,
-      reserved1yr: 62,
-      reserved3yr: 44,
-      color: '#4285F4',
-    },
-    { 
-      provider: 'aws', 
-      name: 'AWS', 
-      instance: 't3.xlarge',
-      onDemand: 121,
-      spot: 36,
-      reserved1yr: 76,
-      reserved3yr: 48,
-      color: '#FF9900',
-    },
-    { 
-      provider: 'azure', 
-      name: 'Azure', 
-      instance: 'Standard_D4s_v4',
-      onDemand: 140,
-      spot: 49,
-      reserved1yr: 91,
-      reserved3yr: 63,
-      color: '#0078D4',
-    },
-  ]
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [comparisonData, setComparisonData] = useState([])
+
+  useEffect(() => {
+    const fetchComparison = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const response = await api.compareCloudPricing(specs.vcpus, specs.memory_gb)
+        const data = response.data.comparison
+        
+        const formattedData = []
+        
+        for (const [provider, info] of Object.entries(data)) {
+          if (provider !== 'cheapest_overall' && info.available) {
+            // Base on-demand price
+            const onDemandMonthly = Math.round(info.monthly_price)
+            
+            // Estimate other pricing models based on typical cloud discounts
+            const spotPrice = Math.round(onDemandMonthly * 0.30) // ~70% discount
+            const reserved1yr = Math.round(onDemandMonthly * 0.65) // ~35% discount
+            const reserved3yr = Math.round(onDemandMonthly * 0.50) // ~50% discount
+            
+            formattedData.push({
+              provider,
+              name: provider.toUpperCase(),
+              instance: info.cheapest_instance,
+              onDemand: onDemandMonthly,
+              spot: spotPrice,
+              reserved1yr: reserved1yr,
+              reserved3yr: reserved3yr,
+              region: info.region,
+              color: provider === 'aws' ? '#FF9900' : provider === 'gcp' ? '#4285F4' : '#0078D4',
+            })
+          }
+        }
+        
+        // Sort by on-demand price
+        formattedData.sort((a, b) => a.onDemand - b.onDemand)
+        
+        setComparisonData(formattedData)
+        setLoading(false)
+      } catch (err) {
+        console.error('Failed to fetch comparison:', err)
+        setError('Failed to load pricing comparison')
+        setLoading(false)
+      }
+    }
+    
+    fetchComparison()
+  }, [specs.vcpus, specs.memory_gb])
 
   const chartData = comparisonData.map(item => ({
     name: item.name,
@@ -55,11 +75,11 @@ export default function PriceComparison() {
     '3-Year Reserved': item.reserved3yr,
   }))
 
-  const cheapest = comparisonData.reduce((min, item) => 
+  const cheapest = comparisonData.length > 0 ? comparisonData.reduce((min, item) => 
     item.onDemand < min.onDemand ? item : min
-  , comparisonData[0])
+  , comparisonData[0]) : null
 
-  const maxSavings = Math.round((1 - comparisonData[0].spot / comparisonData[2].onDemand) * 100)
+  const maxSavings = comparisonData.length > 2 ? Math.round((1 - comparisonData[0].spot / comparisonData[2].onDemand) * 100) : 0
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -105,7 +125,24 @@ export default function PriceComparison() {
         </div>
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="glass-card p-12 text-center">
+          <Loader2 className="w-12 h-12 text-primary-400 animate-spin mx-auto mb-4" />
+          <p className="text-slate-400">Loading pricing comparison...</p>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="glass-card p-6 border-red-500/30 bg-red-500/5">
+          <p className="text-red-400">{error}</p>
+        </div>
+      )}
+
       {/* Summary Cards */}
+      {!loading && !error && comparisonData.length > 0 && (
+        <>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="glass-card p-6 border-green-500/30">
           <div className="flex items-center justify-between mb-2">
@@ -254,6 +291,8 @@ export default function PriceComparison() {
           </div>
         </div>
       </div>
+      </>
+      )}
     </div>
   )
 }

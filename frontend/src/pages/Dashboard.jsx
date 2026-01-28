@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { 
   Cloud, 
@@ -12,16 +12,66 @@ import {
 } from 'lucide-react'
 import StatsCard from '../components/StatsCard'
 import CloudBadge from '../components/CloudBadge'
+import { api } from '../api/client'
 
 export default function Dashboard() {
   const [selectedCloud, setSelectedCloud] = useState('all')
-
-  const stats = [
-    { title: 'Instance Types', value: '700+', subtitle: 'Across all clouds', icon: Server },
+  const [stats, setStats] = useState([
+    { title: 'Instance Types', value: '...', subtitle: 'Across all clouds', icon: Server },
     { title: 'Max Savings', value: '90%', subtitle: 'With Spot instances', icon: TrendingDown, trend: 'up', trendValue: 'vs On-Demand' },
-    { title: 'Regions', value: '80+', subtitle: 'Global coverage', icon: Cloud },
+    { title: 'Regions', value: '...', subtitle: 'Global coverage', icon: Cloud },
     { title: 'Updated', value: 'Real-time', subtitle: 'Pricing data', icon: Zap },
-  ]
+  ])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const provider = selectedCloud === 'all' ? null : selectedCloud
+        const response = await api.get('/api/v1/multicloud/stats', {
+          params: provider ? { provider } : {}
+        })
+        const data = response.data
+        
+        setStats([
+          { 
+            title: 'Instance Types', 
+            value: data.total_instances.toLocaleString(), 
+            subtitle: selectedCloud === 'all' 
+              ? `AWS: ${data.by_provider.aws || 0}, GCP: ${data.by_provider.gcp || 0}, Azure: ${data.by_provider.azure || 0}` 
+              : `${selectedCloud.toUpperCase()} instances`,
+            icon: Server 
+          },
+          { 
+            title: 'Max Savings', 
+            value: '90%', 
+            subtitle: 'With Spot instances', 
+            icon: TrendingDown, 
+            trend: 'up', 
+            trendValue: 'vs On-Demand' 
+          },
+          { 
+            title: 'Regions', 
+            value: `${data.total_regions}+`, 
+            subtitle: 'Global coverage', 
+            icon: Cloud 
+          },
+          { 
+            title: 'Updated', 
+            value: 'Real-time', 
+            subtitle: 'Pricing data', 
+            icon: Zap 
+          },
+        ])
+        setLoading(false)
+      } catch (error) {
+        console.error('Failed to fetch stats:', error)
+        setLoading(false)
+      }
+    }
+    
+    fetchStats()
+  }, [selectedCloud])
 
   const features = [
     {
@@ -34,7 +84,7 @@ export default function Dashboard() {
     {
       icon: Server,
       title: 'Instance Finder',
-      description: 'Search and filter 700+ instance types across AWS, GCP, and Azure',
+      description: 'Search and filter 1200+ instance types across AWS, GCP, and Azure',
       link: '/instances',
       color: 'from-blue-500 to-cyan-500',
     },
@@ -54,11 +104,39 @@ export default function Dashboard() {
     },
   ]
 
-  const quickCompare = [
-    { provider: 'aws', instance: 'm5.large', price: 0.096, region: 'us-east-1' },
-    { provider: 'gcp', instance: 'n2-standard-2', price: 0.097, region: 'us-central1' },
-    { provider: 'azure', instance: 'Standard_D2s_v4', price: 0.096, region: 'eastus' },
-  ]
+  const [quickCompare, setQuickCompare] = useState([])
+
+  useEffect(() => {
+    const fetchComparison = async () => {
+      try {
+        const response = await api.compareCloudPricing(2, 8)
+        const data = response.data.comparison
+        
+        const compareData = []
+        for (const [provider, info] of Object.entries(data)) {
+          if (provider !== 'cheapest_overall' && info.available) {
+            compareData.push({
+              provider,
+              instance: info.cheapest_instance,
+              price: info.hourly_price,
+              region: info.region
+            })
+          }
+        }
+        setQuickCompare(compareData)
+      } catch (error) {
+        console.error('Failed to fetch comparison:', error)
+        // Fallback to sample data
+        setQuickCompare([
+          { provider: 'aws', instance: 'm5.large', price: 0.096, region: 'us-east-1' },
+          { provider: 'gcp', instance: 'n2-standard-2', price: 0.097, region: 'us-central1' },
+          { provider: 'azure', instance: 'Standard_D2s_v4', price: 0.096, region: 'eastus' },
+        ])
+      }
+    }
+    
+    fetchComparison()
+  }, [])
 
   return (
     <div className="space-y-8 animate-fade-in">

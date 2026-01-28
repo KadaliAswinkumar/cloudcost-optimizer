@@ -11,6 +11,10 @@ const apiClient = axios.create({
 
 // API endpoints
 export const api = {
+  // Direct axios methods
+  get: (url, config) => apiClient.get(url, config),
+  post: (url, data, config) => apiClient.post(url, data, config),
+  
   // Health
   health: () => apiClient.get('/health'),
   
