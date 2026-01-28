@@ -79,7 +79,7 @@ export default function InstanceFinder() {
       
       return true
     })
-  }, [searchQuery, selectedProviders, selectedCategory, filters])
+  }, [searchQuery, selectedProviders, selectedCategory, filters, instances])
 
   const toggleProvider = (provider) => {
     setSelectedProviders(prev => 
