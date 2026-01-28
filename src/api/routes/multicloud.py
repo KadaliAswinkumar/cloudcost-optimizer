@@ -6,7 +6,7 @@ Provides cross-cloud comparison and recommendations.
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, func
+from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
@@ -30,7 +30,7 @@ async def get_cloud_stats(
     Returns:
         Statistics including instance counts, regions, and pricing data
     """
-    from sqlalchemy import and_, distinct
+    from sqlalchemy import distinct
     
     # Build base query
     conditions = []
@@ -228,7 +228,7 @@ async def list_multicloud_instances(
             conditions.append(CloudInstance.gpu_count > 0)
         else:
             conditions.append(
-                (CloudInstance.gpu_count == None) | (CloudInstance.gpu_count == 0)
+                or_(CloudInstance.gpu_count.is_(None), CloudInstance.gpu_count == 0)
             )
     
     if conditions:
