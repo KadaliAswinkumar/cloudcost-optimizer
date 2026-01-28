@@ -34,6 +34,6 @@ EXPOSE 8000
 
 # Default command - Run migrations, load real data, then start server
 CMD alembic upgrade head && \
-    python fetch_real_data.py || echo "Data fetch failed, using existing data" && \
+    (python fetch_real_data.py || echo "⚠️  Data fetch failed, continuing with existing data...") && \
     uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8000}
 
