@@ -21,41 +21,41 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     """Add indexes for frequently queried columns to improve query performance."""
     
-    # CloudInstance indexes
-    op.create_index('ix_cloud_instances_provider', 'cloud_instances', ['provider'])
-    op.create_index('ix_cloud_instances_vcpus', 'cloud_instances', ['vcpus'])
-    op.create_index('ix_cloud_instances_memory_gb', 'cloud_instances', ['memory_gb'])
-    op.create_index('ix_cloud_instances_category', 'cloud_instances', ['category'])
-    op.create_index('ix_cloud_instances_provider_vcpus', 'cloud_instances', ['provider', 'vcpus'])
-    op.create_index('ix_cloud_instances_provider_category', 'cloud_instances', ['provider', 'category'])
+    # CloudInstance indexes - using IF NOT EXISTS to make migration idempotent
+    op.execute('CREATE INDEX IF NOT EXISTS ix_cloud_instances_provider ON cloud_instances (provider)')
+    op.execute('CREATE INDEX IF NOT EXISTS ix_cloud_instances_vcpus ON cloud_instances (vcpus)')
+    op.execute('CREATE INDEX IF NOT EXISTS ix_cloud_instances_memory_gb ON cloud_instances (memory_gb)')
+    op.execute('CREATE INDEX IF NOT EXISTS ix_cloud_instances_category ON cloud_instances (category)')
+    op.execute('CREATE INDEX IF NOT EXISTS ix_cloud_instances_provider_vcpus ON cloud_instances (provider, vcpus)')
+    op.execute('CREATE INDEX IF NOT EXISTS ix_cloud_instances_provider_category ON cloud_instances (provider, category)')
     
-    # CloudPricing indexes
-    op.create_index('ix_cloud_pricing_provider', 'cloud_pricing', ['provider'])
-    op.create_index('ix_cloud_pricing_instance_type', 'cloud_pricing', ['instance_type'])
-    op.create_index('ix_cloud_pricing_region', 'cloud_pricing', ['region'])
-    op.create_index('ix_cloud_pricing_pricing_type', 'cloud_pricing', ['pricing_type'])
-    op.create_index('ix_cloud_pricing_provider_instance', 'cloud_pricing', ['provider', 'instance_type'])
-    op.create_index('ix_cloud_pricing_provider_region', 'cloud_pricing', ['provider', 'region'])
-    op.create_index('ix_cloud_pricing_instance_region', 'cloud_pricing', ['instance_type', 'region'])
+    # CloudPricing indexes - using IF NOT EXISTS to make migration idempotent
+    op.execute('CREATE INDEX IF NOT EXISTS ix_cloud_pricing_provider ON cloud_pricing (provider)')
+    op.execute('CREATE INDEX IF NOT EXISTS ix_cloud_pricing_instance_type ON cloud_pricing (instance_type)')
+    op.execute('CREATE INDEX IF NOT EXISTS ix_cloud_pricing_region ON cloud_pricing (region)')
+    op.execute('CREATE INDEX IF NOT EXISTS ix_cloud_pricing_pricing_type ON cloud_pricing (pricing_type)')
+    op.execute('CREATE INDEX IF NOT EXISTS ix_cloud_pricing_provider_instance ON cloud_pricing (provider, instance_type)')
+    op.execute('CREATE INDEX IF NOT EXISTS ix_cloud_pricing_provider_region ON cloud_pricing (provider, region)')
+    op.execute('CREATE INDEX IF NOT EXISTS ix_cloud_pricing_instance_region ON cloud_pricing (instance_type, region)')
 
 
 def downgrade() -> None:
     """Remove the performance indexes."""
     
-    # CloudPricing indexes
-    op.drop_index('ix_cloud_pricing_instance_region')
-    op.drop_index('ix_cloud_pricing_provider_region')
-    op.drop_index('ix_cloud_pricing_provider_instance')
-    op.drop_index('ix_cloud_pricing_pricing_type')
-    op.drop_index('ix_cloud_pricing_region')
-    op.drop_index('ix_cloud_pricing_instance_type')
-    op.drop_index('ix_cloud_pricing_provider')
+    # CloudPricing indexes - using IF EXISTS to make migration idempotent
+    op.execute('DROP INDEX IF EXISTS ix_cloud_pricing_instance_region')
+    op.execute('DROP INDEX IF EXISTS ix_cloud_pricing_provider_region')
+    op.execute('DROP INDEX IF EXISTS ix_cloud_pricing_provider_instance')
+    op.execute('DROP INDEX IF EXISTS ix_cloud_pricing_pricing_type')
+    op.execute('DROP INDEX IF EXISTS ix_cloud_pricing_region')
+    op.execute('DROP INDEX IF EXISTS ix_cloud_pricing_instance_type')
+    op.execute('DROP INDEX IF EXISTS ix_cloud_pricing_provider')
     
-    # CloudInstance indexes
-    op.drop_index('ix_cloud_instances_provider_category')
-    op.drop_index('ix_cloud_instances_provider_vcpus')
-    op.drop_index('ix_cloud_instances_category')
-    op.drop_index('ix_cloud_instances_memory_gb')
-    op.drop_index('ix_cloud_instances_vcpus')
-    op.drop_index('ix_cloud_instances_provider')
+    # CloudInstance indexes - using IF EXISTS to make migration idempotent
+    op.execute('DROP INDEX IF EXISTS ix_cloud_instances_provider_category')
+    op.execute('DROP INDEX IF EXISTS ix_cloud_instances_provider_vcpus')
+    op.execute('DROP INDEX IF EXISTS ix_cloud_instances_category')
+    op.execute('DROP INDEX IF EXISTS ix_cloud_instances_memory_gb')
+    op.execute('DROP INDEX IF EXISTS ix_cloud_instances_vcpus')
+    op.execute('DROP INDEX IF EXISTS ix_cloud_instances_provider')
 
