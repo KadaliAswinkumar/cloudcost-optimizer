@@ -72,8 +72,12 @@ async def main():
             
             await db.commit()
         
-        # Fetch pricing for multiple regions
-        gcp_regions = ["us-central1", "us-west1", "europe-west1"]
+        # Fetch pricing for multiple regions (expanded for more coverage)
+        gcp_regions = [
+            "us-central1", "us-east1", "us-west1", "us-west2",
+            "europe-west1", "europe-west2", "europe-west3", "europe-west4",
+            "asia-east1", "asia-northeast1", "asia-southeast1"
+        ]
         
         for region in gcp_regions:
             pricing_data = await gcp_fetcher.fetch_pricing(region)
@@ -139,8 +143,12 @@ async def main():
             
             await db.commit()
         
-        # Fetch pricing for multiple regions
-        azure_regions = ["eastus", "westus2", "westeurope"]
+        # Fetch pricing for multiple regions (expanded for more coverage)
+        azure_regions = [
+            "eastus", "eastus2", "westus", "westus2", "westus3",
+            "northeurope", "westeurope", "uksouth",
+            "southeastasia", "australiaeast", "japaneast"
+        ]
         
         for region in azure_regions:
             pricing_data = await azure_fetcher.fetch_pricing(region)

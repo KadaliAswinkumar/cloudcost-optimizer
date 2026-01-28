@@ -166,8 +166,8 @@ export default function CostCalculator() {
                     onClick={() => {
                       const providerInstances = allInstances.filter(i => i.provider === provider)
                       setConfig({ 
-                        ...config, 
-                        provider,
+                      ...config, 
+                      provider,
                         instanceType: providerInstances.length > 0 ? providerInstances[0].instance_type : ''
                       })
                     }}
@@ -196,17 +196,17 @@ export default function CostCalculator() {
                   Loading instances...
                 </div>
               ) : (
-                <select
-                  value={config.instanceType}
-                  onChange={(e) => setConfig({ ...config, instanceType: e.target.value })}
-                  className="input-field"
-                >
-                  {instances.map(inst => (
+              <select
+                value={config.instanceType}
+                onChange={(e) => setConfig({ ...config, instanceType: e.target.value })}
+                className="input-field"
+              >
+                {instances.map(inst => (
                     <option key={inst.instance_type} value={inst.instance_type}>
                       {inst.instance_type} ({inst.vcpus} vCPUs, {inst.memory_gb}GB RAM)
                     </option>
-                  ))}
-                </select>
+                ))}
+              </select>
               )}
               <p className="text-xs text-slate-500 mt-1">
                 {instances.length} instances available for {config.provider.toUpperCase()}

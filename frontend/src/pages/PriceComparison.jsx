@@ -79,7 +79,12 @@ export default function PriceComparison() {
     item.onDemand < min.onDemand ? item : min
   , comparisonData[0]) : null
 
-  const maxSavings = comparisonData.length > 2 ? Math.round((1 - comparisonData[0].spot / comparisonData[2].onDemand) * 100) : 0
+  // Calculate max savings: cheapest Spot vs most expensive On-Demand
+  const maxSavings = comparisonData.length > 0 ? (() => {
+    const cheapestSpot = Math.min(...comparisonData.map(item => item.spot))
+    const mostExpensiveOnDemand = Math.max(...comparisonData.map(item => item.onDemand))
+    return mostExpensiveOnDemand > 0 ? Math.round((1 - cheapestSpot / mostExpensiveOnDemand) * 100) : 0
+  })() : 0
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -164,7 +169,7 @@ export default function PriceComparison() {
             <TrendingDown className="w-5 h-5 text-green-400" />
           </div>
           <p className="text-2xl font-bold text-green-400">{maxSavings}%</p>
-          <p className="text-xs text-slate-500">With GCP Spot vs Azure On-Demand</p>
+          <p className="text-xs text-slate-500">Cheapest Spot vs Most Expensive On-Demand</p>
         </div>
 
         <div className="glass-card p-6">
