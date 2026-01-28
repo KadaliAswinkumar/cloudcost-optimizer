@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.cloud_provider import CloudProvider, CloudInstance, CloudPricing
 from src.services.cost_calculator import CostCalculator
+from src.core.cache import get_redis_client
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +139,7 @@ class MultiCloudRecommender:
         requirements: MultiCloudRequirements,
     ) -> Dict:
         """
-        Generate multi-cloud recommendations.
+        Generate multi-cloud recommendations with Redis caching.
         
         Args:
             requirements: Multi-cloud workload requirements
@@ -148,6 +149,21 @@ class MultiCloudRecommender:
         """
         logger.info(f"Generating multi-cloud recommendations: {requirements}")
         
+        # Try to get from cache
+        cache_key = f"multicloud:recommendations:{requirements.to_hash()}"
+        redis = await get_redis_client()
+        
+        if redis:
+            try:
+                cached = await redis.get(cache_key)
+                if cached:
+                    logger.info(f"Cache HIT for recommendations: {cache_key}")
+                    return json.loads(cached)
+                logger.info(f"Cache MISS for recommendations: {cache_key}")
+            except Exception as e:
+                logger.warning(f"Redis cache read error: {e}")
+        
+        # Generate recommendations
         providers = requirements.providers or ["aws", "gcp", "azure"]
         
         # Find matching instances across all providers
@@ -189,7 +205,7 @@ class MultiCloudRecommender:
         # Calculate savings comparison
         comparison = self._calculate_cross_cloud_comparison(overall_best, requirements)
         
-        return {
+        result = {
             "requirements_summary": {
                 "min_vcpus": requirements.min_vcpus,
                 "min_memory_gb": requirements.min_memory_gb,
@@ -205,6 +221,20 @@ class MultiCloudRecommender:
             "cross_cloud_comparison": comparison,
             "generated_at": datetime.utcnow().isoformat(),
         }
+        
+        # Cache the result for 10 minutes (600 seconds)
+        if redis:
+            try:
+                await redis.setex(
+                    cache_key,
+                    600,  # 10 minutes
+                    json.dumps(result, default=str)
+                )
+                logger.info(f"Cached recommendations for 10 minutes: {cache_key}")
+            except Exception as e:
+                logger.warning(f"Redis cache write error: {e}")
+        
+        return result
     
     async def _find_matching_instances(
         self,

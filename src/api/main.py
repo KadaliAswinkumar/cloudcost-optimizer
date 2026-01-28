@@ -9,6 +9,7 @@ import logging
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.openapi.utils import get_openapi
 
@@ -105,6 +106,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add GZip compression middleware (compress responses > 1KB)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Add rate limiting middleware
 app.add_middleware(RateLimiterMiddleware)

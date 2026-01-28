@@ -117,8 +117,38 @@ async def list_multicloud_instances(
     List instances across all cloud providers.
     
     Returns paginated list of instances from AWS, GCP, and Azure.
+    
+    Optimized with:
+    - Single JOIN query instead of N+1 queries
+    - Database indexes on frequently queried columns
     """
-    query = select(CloudInstance)
+    # Build query with LEFT JOIN to get pricing in one query
+    from sqlalchemy.orm import aliased
+    
+    # Subquery to get the cheapest on-demand pricing per instance
+    pricing_subquery = (
+        select(
+            CloudPricing.provider,
+            CloudPricing.instance_type,
+            func.min(CloudPricing.hourly_price).label('min_price')
+        )
+        .where(CloudPricing.pricing_type == "on_demand")
+        .group_by(CloudPricing.provider, CloudPricing.instance_type)
+        .subquery()
+    )
+    
+    # Main query with JOIN
+    query = select(
+        CloudInstance,
+        pricing_subquery.c.min_price.label('hourly_price')
+    ).outerjoin(
+        pricing_subquery,
+        and_(
+            CloudInstance.provider == pricing_subquery.c.provider,
+            CloudInstance.instance_type == pricing_subquery.c.instance_type
+        )
+    )
+    
     conditions = []
     
     if provider:
@@ -144,36 +174,26 @@ async def list_multicloud_instances(
     if conditions:
         query = query.where(*conditions)
     
-    # Get total count
-    count_query = select(func.count()).select_from(query.subquery())
+    # Get total count (before pagination)
+    count_query = select(func.count()).select_from(
+        select(CloudInstance).where(*conditions).subquery()
+    ) if conditions else select(func.count()).select_from(CloudInstance)
     total_result = await db.execute(count_query)
     total = total_result.scalar()
     
-    # Apply pagination
+    # Apply pagination and ordering
     query = query.order_by(CloudInstance.provider, CloudInstance.vcpus, CloudInstance.memory_gb)
     query = query.offset(offset).limit(limit)
     
+    # Execute query once
     result = await db.execute(query)
-    instances = result.scalars().all()
+    rows = result.all()
     
-    # Fetch pricing for all instances (get cheapest on-demand pricing per instance)
+    # Format response
     instance_data = []
-    for instance in instances:
-        pricing_query = select(CloudPricing).where(
-            CloudPricing.provider == instance.provider,
-            CloudPricing.instance_type == instance.instance_type,
-            CloudPricing.pricing_type == "on_demand"
-        ).order_by(CloudPricing.hourly_price).limit(1)
-        
-        pricing_result = await db.execute(pricing_query)
-        pricing = pricing_result.scalar_one_or_none()
-        
+    for instance, hourly_price in rows:
         instance_dict = instance.to_dict()
-        if pricing:
-            instance_dict["hourly_price"] = float(pricing.hourly_price)
-        else:
-            instance_dict["hourly_price"] = 0.0
-        
+        instance_dict["hourly_price"] = float(hourly_price) if hourly_price else 0.0
         instance_data.append(instance_dict)
     
     return {
