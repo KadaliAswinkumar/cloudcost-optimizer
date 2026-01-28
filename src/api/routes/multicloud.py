@@ -30,50 +30,100 @@ async def get_cloud_stats(
     Returns:
         Statistics including instance counts, regions, and pricing data
     """
+    import logging
     from sqlalchemy import distinct
     
-    # Build base query
-    conditions = []
-    if provider:
-        conditions.append(CloudInstance.provider == provider)
+    logger = logging.getLogger(__name__)
     
-    base_where = and_(*conditions) if conditions else True
-    
-    # Get instance counts by provider
-    provider_counts_query = select(
-        CloudInstance.provider,
-        func.count(CloudInstance.id).label("count")
-    ).where(base_where).group_by(CloudInstance.provider)
-    
-    result = await db.execute(provider_counts_query)
-    provider_counts = {row.provider: row.count for row in result.all()}
-    
-    # Get total instances
-    total_query = select(func.count(CloudInstance.id)).where(base_where)
-    total_result = await db.execute(total_query)
-    total_instances = total_result.scalar() or 0
-    
-    # Get unique regions count
-    regions_query = select(func.count(distinct(CloudPricing.region)))
-    if provider:
-        regions_query = regions_query.where(CloudPricing.provider == provider)
-    regions_result = await db.execute(regions_query)
-    regions_count = regions_result.scalar() or 0
-    
-    # Get pricing records count
-    pricing_query = select(func.count(CloudPricing.id))
-    if provider:
-        pricing_query = pricing_query.where(CloudPricing.provider == provider)
-    pricing_result = await db.execute(pricing_query)
-    pricing_count = pricing_result.scalar() or 0
-    
-    return {
-        "total_instances": total_instances,
-        "by_provider": provider_counts,
-        "total_regions": regions_count,
-        "total_pricing_records": pricing_count,
-        "filter": provider or "all",
-    }
+    try:
+        # Validate provider parameter
+        if provider and provider not in ['aws', 'gcp', 'azure']:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid provider '{provider}'. Must be one of: aws, gcp, azure"
+            )
+        
+        # Build base query
+        conditions = []
+        if provider:
+            conditions.append(CloudInstance.provider == provider)
+        
+        base_where = and_(*conditions) if conditions else True
+        
+        # Get instance counts by provider with error handling
+        provider_counts = {}
+        try:
+            provider_counts_query = select(
+                CloudInstance.provider,
+                func.count(CloudInstance.id).label("count")
+            ).where(base_where).group_by(CloudInstance.provider)
+            
+            result = await db.execute(provider_counts_query)
+            provider_counts = {row.provider: row.count for row in result.all()}
+        except Exception as e:
+            logger.error(f"Error getting provider counts: {e}")
+            # Continue with empty counts
+        
+        # Get total instances with error handling
+        total_instances = 0
+        try:
+            total_query = select(func.count(CloudInstance.id)).where(base_where)
+            total_result = await db.execute(total_query)
+            total_instances = total_result.scalar() or 0
+        except Exception as e:
+            logger.error(f"Error getting total instances: {e}")
+            # Try to sum from provider_counts if available
+            total_instances = sum(provider_counts.values()) if provider_counts else 0
+        
+        # Get unique regions count with error handling
+        regions_count = 0
+        try:
+            regions_query = select(func.count(distinct(CloudPricing.region)))
+            if provider:
+                regions_query = regions_query.where(CloudPricing.provider == provider)
+            regions_result = await db.execute(regions_query)
+            regions_count = regions_result.scalar() or 0
+        except Exception as e:
+            logger.error(f"Error getting regions count: {e}")
+            # Continue with 0
+        
+        # Get pricing records count with error handling
+        pricing_count = 0
+        try:
+            pricing_query = select(func.count(CloudPricing.id))
+            if provider:
+                pricing_query = pricing_query.where(CloudPricing.provider == provider)
+            pricing_result = await db.execute(pricing_query)
+            pricing_count = pricing_result.scalar() or 0
+        except Exception as e:
+            logger.error(f"Error getting pricing count: {e}")
+            # Continue with 0
+        
+        logger.info(f"Stats retrieved: {total_instances} instances, {regions_count} regions")
+        
+        return {
+            "total_instances": total_instances,
+            "by_provider": provider_counts,
+            "total_regions": regions_count,
+            "total_pricing_records": pricing_count,
+            "filter": provider or "all",
+            "success": True,
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in get_cloud_stats: {e}", exc_info=True)
+        # Return partial data instead of failing completely
+        return {
+            "total_instances": 0,
+            "by_provider": {},
+            "total_regions": 0,
+            "total_pricing_records": 0,
+            "filter": provider or "all",
+            "success": False,
+            "error": "Partial failure retrieving stats"
+        }
 
 
 class MultiCloudRecommendationRequest(BaseModel):
@@ -181,87 +231,173 @@ async def list_multicloud_instances(
     Optimized with:
     - Single JOIN query instead of N+1 queries
     - Database indexes on frequently queried columns
+    - Comprehensive error handling and fallbacks
     """
-    # Build query with LEFT JOIN to get pricing in one query
-    from sqlalchemy.orm import aliased
+    import logging
+    logger = logging.getLogger(__name__)
     
-    # Subquery to get the cheapest on-demand pricing per instance
-    pricing_subquery = (
-        select(
-            CloudPricing.provider,
-            CloudPricing.instance_type,
-            func.min(CloudPricing.hourly_price).label('min_price')
-        )
-        .where(CloudPricing.pricing_type == "on_demand")
-        .group_by(CloudPricing.provider, CloudPricing.instance_type)
-        .subquery()
-    )
-    
-    # Main query with JOIN
-    query = select(
-        CloudInstance,
-        pricing_subquery.c.min_price.label('hourly_price')
-    ).outerjoin(
-        pricing_subquery,
-        and_(
-            CloudInstance.provider == pricing_subquery.c.provider,
-            CloudInstance.instance_type == pricing_subquery.c.instance_type
-        )
-    )
-    
-    conditions = []
-    
-    if provider:
-        conditions.append(CloudInstance.provider == provider)
-    if min_vcpus:
-        conditions.append(CloudInstance.vcpus >= min_vcpus)
-    if max_vcpus:
-        conditions.append(CloudInstance.vcpus <= max_vcpus)
-    if min_memory:
-        conditions.append(CloudInstance.memory_gb >= min_memory)
-    if max_memory:
-        conditions.append(CloudInstance.memory_gb <= max_memory)
-    if category:
-        conditions.append(CloudInstance.category == category)
-    if has_gpu is not None:
-        if has_gpu:
-            conditions.append(CloudInstance.gpu_count > 0)
-        else:
-            conditions.append(
-                or_(CloudInstance.gpu_count.is_(None), CloudInstance.gpu_count == 0)
+    try:
+        # Validate provider parameter
+        if provider and provider not in ['aws', 'gcp', 'azure']:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid provider '{provider}'. Must be one of: aws, gcp, azure"
             )
-    
-    if conditions:
-        query = query.where(*conditions)
-    
-    # Get total count (before pagination)
-    count_query = select(func.count()).select_from(
-        select(CloudInstance).where(*conditions).subquery()
-    ) if conditions else select(func.count()).select_from(CloudInstance)
-    total_result = await db.execute(count_query)
-    total = total_result.scalar()
-    
-    # Apply pagination and ordering
-    query = query.order_by(CloudInstance.provider, CloudInstance.vcpus, CloudInstance.memory_gb)
-    query = query.offset(offset).limit(limit)
-    
-    # Execute query once
-    result = await db.execute(query)
-    rows = result.all()
-    
-    # Format response
-    instance_data = []
-    for instance, hourly_price in rows:
-        instance_dict = instance.to_dict()
-        instance_dict["hourly_price"] = float(hourly_price) if hourly_price else 0.0
-        instance_data.append(instance_dict)
-    
-    return {
-        "total": total,
-        "limit": limit,
-        "offset": offset,
-        "instances": instance_data,
-    }
+        
+        # Build query with LEFT JOIN to get pricing in one query
+        try:
+            # Subquery to get the cheapest on-demand pricing per instance
+            pricing_subquery = (
+                select(
+                    CloudPricing.provider,
+                    CloudPricing.instance_type,
+                    func.min(CloudPricing.hourly_price).label('min_price')
+                )
+                .where(CloudPricing.pricing_type == "on_demand")
+                .group_by(CloudPricing.provider, CloudPricing.instance_type)
+                .subquery()
+            )
+            
+            # Main query with JOIN
+            query = select(
+                CloudInstance,
+                pricing_subquery.c.min_price.label('hourly_price')
+            ).outerjoin(
+                pricing_subquery,
+                and_(
+                    CloudInstance.provider == pricing_subquery.c.provider,
+                    CloudInstance.instance_type == pricing_subquery.c.instance_type
+                )
+            )
+        except Exception as e:
+            logger.error(f"Error building query: {e}")
+            # Fallback: Simple query without pricing
+            query = select(CloudInstance)
+            pricing_subquery = None
+        
+        conditions = []
+        
+        # Build filter conditions with validation
+        try:
+            if provider:
+                conditions.append(CloudInstance.provider == provider)
+            if min_vcpus is not None and min_vcpus > 0:
+                conditions.append(CloudInstance.vcpus >= min_vcpus)
+            if max_vcpus is not None and max_vcpus > 0:
+                conditions.append(CloudInstance.vcpus <= max_vcpus)
+            if min_memory is not None and min_memory > 0:
+                conditions.append(CloudInstance.memory_gb >= min_memory)
+            if max_memory is not None and max_memory > 0:
+                conditions.append(CloudInstance.memory_gb <= max_memory)
+            if category:
+                conditions.append(CloudInstance.category == category)
+            if has_gpu is not None:
+                if has_gpu:
+                    conditions.append(CloudInstance.gpu_count > 0)
+                else:
+                    conditions.append(
+                        or_(CloudInstance.gpu_count.is_(None), CloudInstance.gpu_count == 0)
+                    )
+        except Exception as e:
+            logger.warning(f"Error building conditions: {e}")
+            # Continue with whatever conditions were successfully built
+        
+        if conditions:
+            query = query.where(*conditions)
+        
+        # Get total count with error handling
+        total = 0
+        try:
+            count_query = select(func.count()).select_from(
+                select(CloudInstance).where(*conditions).subquery()
+            ) if conditions else select(func.count()).select_from(CloudInstance)
+            total_result = await db.execute(count_query)
+            total = total_result.scalar() or 0
+        except Exception as e:
+            logger.warning(f"Error getting total count: {e}")
+            # Continue without total count
+        
+        # Apply pagination and ordering
+        try:
+            query = query.order_by(CloudInstance.provider, CloudInstance.vcpus, CloudInstance.memory_gb)
+            query = query.offset(offset).limit(limit)
+        except Exception as e:
+            logger.warning(f"Error applying pagination: {e}")
+            # Continue with default ordering
+        
+        # Execute query with retry logic
+        rows = []
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                result = await db.execute(query)
+                rows = result.all()
+                break
+            except Exception as e:
+                logger.error(f"Query execution attempt {attempt + 1} failed: {e}")
+                if attempt == max_retries - 1:
+                    # Last attempt failed, try fallback simple query
+                    try:
+                        logger.info("Attempting fallback simple query...")
+                        simple_query = select(CloudInstance)
+                        if conditions:
+                            simple_query = simple_query.where(*conditions)
+                        simple_query = simple_query.limit(limit).offset(offset)
+                        result = await db.execute(simple_query)
+                        rows = [(instance, None) for instance in result.scalars().all()]
+                        logger.info(f"Fallback query succeeded with {len(rows)} results")
+                    except Exception as fallback_error:
+                        logger.error(f"Fallback query also failed: {fallback_error}")
+                        raise HTTPException(
+                            status_code=500,
+                            detail="Failed to retrieve instances. Please try again later."
+                        )
+        
+        # Format response with error handling
+        instance_data = []
+        for row in rows:
+            try:
+                if isinstance(row, tuple):
+                    instance, hourly_price = row
+                else:
+                    instance = row
+                    hourly_price = None
+                
+                instance_dict = instance.to_dict()
+                # Safely handle pricing
+                if hourly_price is not None:
+                    try:
+                        instance_dict["hourly_price"] = float(hourly_price)
+                    except (ValueError, TypeError):
+                        instance_dict["hourly_price"] = 0.0
+                else:
+                    instance_dict["hourly_price"] = 0.0
+                
+                instance_data.append(instance_dict)
+            except Exception as e:
+                logger.warning(f"Error formatting instance: {e}")
+                # Skip this instance and continue
+                continue
+        
+        logger.info(f"Successfully returned {len(instance_data)} instances (total: {total})")
+        
+        return {
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "instances": instance_data,
+            "success": True,
+        }
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in list_multicloud_instances: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error while fetching instances. Please try again."
+        )
 
 
 @router.get("/instances/{provider}/{instance_type}")
@@ -366,69 +502,117 @@ async def compare_pricing_across_clouds(
     Returns:
         Pricing comparison across AWS, GCP, and Azure
     """
-    comparison = {}
+    import logging
+    logger = logging.getLogger(__name__)
     
-    for provider in ["aws", "gcp", "azure"]:
-        # Find matching instances
-        instance_query = select(CloudInstance).where(
-            CloudInstance.provider == provider,
-            CloudInstance.vcpus >= vcpus,
-            CloudInstance.vcpus <= vcpus * 1.5,
-            CloudInstance.memory_gb >= memory_gb,
-            CloudInstance.memory_gb <= memory_gb * 1.5,
-        )
-        result = await db.execute(instance_query)
-        instances = result.scalars().all()
+    try:
+        comparison = {}
         
-        if not instances:
-            comparison[provider] = {"available": False}
-            continue
+        for provider in ["aws", "gcp", "azure"]:
+            try:
+                # Find matching instances with some tolerance
+                instance_query = select(CloudInstance).where(
+                    CloudInstance.provider == provider,
+                    CloudInstance.vcpus >= vcpus,
+                    CloudInstance.vcpus <= vcpus * 1.5,
+                    CloudInstance.memory_gb >= memory_gb,
+                    CloudInstance.memory_gb <= memory_gb * 1.5,
+                )
+                result = await db.execute(instance_query)
+                instances = result.scalars().all()
+                
+                if not instances:
+                    logger.info(f"No matching instances found for {provider}")
+                    comparison[provider] = {"available": False}
+                    continue
+                
+                instance_types = [i.instance_type for i in instances]
+                
+                # Get on-demand pricing with error handling
+                try:
+                    pricing_query = select(CloudPricing).where(
+                        CloudPricing.provider == provider,
+                        CloudPricing.instance_type.in_(instance_types),
+                        CloudPricing.pricing_type == "on_demand",
+                    ).order_by(CloudPricing.hourly_price).limit(1)
+                    
+                    pricing_result = await db.execute(pricing_query)
+                    cheapest = pricing_result.scalar_one_or_none()
+                except Exception as e:
+                    logger.error(f"Error fetching pricing for {provider}: {e}")
+                    cheapest = None
+                
+                if cheapest and cheapest.hourly_price is not None:
+                    try:
+                        instance = next((i for i in instances if i.instance_type == cheapest.instance_type), None)
+                        if instance:
+                            comparison[provider] = {
+                                "available": True,
+                                "cheapest_instance": cheapest.instance_type,
+                                "specs": {
+                                    "vcpus": instance.vcpus,
+                                    "memory_gb": float(instance.memory_gb) if instance.memory_gb else 0.0,
+                                },
+                                "region": cheapest.region or "unknown",
+                                "hourly_price": float(cheapest.hourly_price),
+                                "monthly_price": float(cheapest.hourly_price * 730),
+                            }
+                        else:
+                            comparison[provider] = {"available": False}
+                    except Exception as e:
+                        logger.error(f"Error building comparison for {provider}: {e}")
+                        comparison[provider] = {"available": False}
+                else:
+                    logger.info(f"No pricing found for {provider}")
+                    comparison[provider] = {"available": False}
+                    
+            except Exception as e:
+                logger.error(f"Error processing {provider}: {e}")
+                comparison[provider] = {"available": False, "error": str(e)}
         
-        instance_types = [i.instance_type for i in instances]
+        # Find overall cheapest with error handling
+        try:
+            available = {k: v for k, v in comparison.items() if v.get("available") and "hourly_price" in v}
+            if available:
+                cheapest = min(available.keys(), key=lambda k: available[k]["hourly_price"])
+                comparison["cheapest_overall"] = {
+                    "provider": cheapest,
+                    "instance": available[cheapest]["cheapest_instance"],
+                    "monthly_cost": available[cheapest]["monthly_price"],
+                }
+            else:
+                logger.warning("No available providers found in comparison")
+        except Exception as e:
+            logger.error(f"Error finding cheapest overall: {e}")
+            # Continue without cheapest_overall
         
-        # Get on-demand pricing
-        pricing_query = select(CloudPricing).where(
-            CloudPricing.provider == provider,
-            CloudPricing.instance_type.in_(instance_types),
-            CloudPricing.pricing_type == "on_demand",
-        ).order_by(CloudPricing.hourly_price).limit(1)
+        logger.info(f"Price comparison completed for {vcpus} vCPUs, {memory_gb} GB RAM")
         
-        pricing_result = await db.execute(pricing_query)
-        cheapest = pricing_result.scalar_one_or_none()
-        
-        if cheapest:
-            instance = next(i for i in instances if i.instance_type == cheapest.instance_type)
-            comparison[provider] = {
-                "available": True,
-                "cheapest_instance": cheapest.instance_type,
-                "specs": {
-                    "vcpus": instance.vcpus,
-                    "memory_gb": instance.memory_gb,
-                },
-                "region": cheapest.region,
-                "hourly_price": float(cheapest.hourly_price),
-                "monthly_price": float(cheapest.hourly_price * 730),
-            }
-        else:
-            comparison[provider] = {"available": False}
-    
-    # Find overall cheapest
-    available = {k: v for k, v in comparison.items() if v.get("available")}
-    if available:
-        cheapest = min(available.keys(), key=lambda k: available[k]["hourly_price"])
-        comparison["cheapest_overall"] = {
-            "provider": cheapest,
-            "instance": available[cheapest]["cheapest_instance"],
-            "monthly_cost": available[cheapest]["monthly_price"],
+        return {
+            "requirements": {
+                "vcpus": vcpus,
+                "memory_gb": memory_gb,
+            },
+            "comparison": comparison,
+            "success": True,
         }
-    
-    return {
-        "requirements": {
-            "vcpus": vcpus,
-            "memory_gb": memory_gb,
-        },
-        "comparison": comparison,
-    }
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in compare_pricing_across_clouds: {e}", exc_info=True)
+        # Return partial results instead of failing completely
+        return {
+            "requirements": {
+                "vcpus": vcpus,
+                "memory_gb": memory_gb,
+            },
+            "comparison": {
+                "aws": {"available": False},
+                "gcp": {"available": False},
+                "azure": {"available": False},
+            },
+            "success": False,
+            "error": "Failed to retrieve pricing comparison"
+        }
 
 
 @router.get("/providers")
