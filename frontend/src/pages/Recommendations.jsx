@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import RecommendationCard from '../components/RecommendationCard'
 import CloudBadge from '../components/CloudBadge'
+import { api } from '../api/client'
 
 export default function Recommendations() {
   const [loading, setLoading] = useState(false)
@@ -45,126 +46,30 @@ export default function Recommendations() {
     setError(null)
 
     try {
-      // Simulated API call - replace with actual API
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      // Call the real multicloud recommendations API
+      const requestData = {
+        min_vcpus: formData.min_vcpus,
+        min_memory_gb: formData.min_memory_gb,
+        providers: formData.providers,
+        workload_type: formData.workload_type,
+        spot_eligible: formData.spot_eligible,
+        hours_per_month: formData.hours_per_month,
+      }
       
-      // Mock response with interruption analysis
-      const spotEnabled = formData.spot_eligible
-      setRecommendations({
-        overall_best: [
-          {
-            rank: 1,
-            provider: 'gcp',
-            instance_type: spotEnabled ? 'e2-standard-4 (Preemptible)' : 'e2-standard-4',
-            region: 'us-central1',
-            specs: { vcpus: 4, memory_gb: 16, category: 'General Purpose' },
-            pricing: { 
-              strategy: spotEnabled ? 'spot' : 'on_demand',
-              monthly_cost: spotEnabled ? 29.57 : 98.55, 
-              hourly_cost: spotEnabled ? 0.0405 : 0.135,
-              on_demand_hourly: 0.135
-            },
-            savings: { percentage: spotEnabled ? 70 : 42 },
-            score: 94,
-            // NEW: Interruption Analysis
-            interruption_analysis: spotEnabled ? {
-              risk_level: 'medium',
-              risk_score: 35,
-              interruption_frequency: '5-15% - Occasional interruptions',
-              provider_notes: 'GCP Preemptible: 30-second warning, max 24h runtime',
-              recommendations: [
-                '📌 GCP: Preemptible VMs have max 24h lifetime',
-                '⚠️ Use checkpointing to save progress frequently'
-              ]
-            } : null,
-          },
-          {
-            rank: 2,
-            provider: 'aws',
-            instance_type: spotEnabled ? 'm5.xlarge (Spot)' : 't3.xlarge',
-            region: 'us-east-1',
-            specs: { vcpus: 4, memory_gb: 16, category: 'General Purpose' },
-            pricing: { 
-              strategy: spotEnabled ? 'spot' : 'on_demand',
-              monthly_cost: spotEnabled ? 36.35 : 121.18, 
-              hourly_cost: spotEnabled ? 0.0498 : 0.166,
-              on_demand_hourly: 0.166
-            },
-            savings: { percentage: spotEnabled ? 70 : 31 },
-            score: 88,
-            interruption_analysis: spotEnabled ? {
-              risk_level: 'low',
-              risk_score: 22,
-              interruption_frequency: '<5% - Very rare interruptions',
-              provider_notes: 'AWS Spot: 2-minute interruption notice via instance metadata',
-              recommendations: [
-                '✅ Good candidate for spot usage',
-                'Set bid at current price + 10%'
-              ]
-            } : null,
-          },
-          {
-            rank: 3,
-            provider: 'azure',
-            instance_type: spotEnabled ? 'Standard_D4s_v4 (Spot)' : 'Standard_D4s_v4',
-            region: 'eastus',
-            specs: { vcpus: 4, memory_gb: 16, category: 'General Purpose' },
-            pricing: { 
-              strategy: spotEnabled ? 'spot' : 'on_demand',
-              monthly_cost: spotEnabled ? 42.05 : 140.16, 
-              hourly_cost: spotEnabled ? 0.0576 : 0.192,
-              on_demand_hourly: 0.192
-            },
-            savings: { percentage: spotEnabled ? 70 : 22 },
-            score: 82,
-            interruption_analysis: spotEnabled ? {
-              risk_level: 'medium',
-              risk_score: 40,
-              interruption_frequency: '5-15% - Occasional interruptions',
-              provider_notes: 'Azure Spot: Eviction notice via scheduled events API',
-              recommendations: [
-                '⚠️ Use checkpointing to save progress frequently',
-                'Consider Spot VM pools for diversification'
-              ]
-            } : null,
-          },
-          // Add a high-risk example when spot is enabled
-          ...(spotEnabled ? [{
-            rank: 4,
-            provider: 'aws',
-            instance_type: 'c5.xlarge (Spot)',
-            region: 'us-west-2',
-            specs: { vcpus: 4, memory_gb: 8, category: 'Compute Optimized' },
-            pricing: { 
-              strategy: 'spot',
-              monthly_cost: 25.55, 
-              hourly_cost: 0.035,
-              on_demand_hourly: 0.170
-            },
-            savings: { percentage: 79 },
-            score: 76,
-            interruption_analysis: {
-              risk_level: 'high',
-              risk_score: 68,
-              interruption_frequency: '15-30% - Frequent interruptions likely',
-              provider_notes: 'AWS Spot: 2-minute interruption notice via instance metadata',
-              recommendations: [
-                '🚨 High interruption risk - only for fault-tolerant workloads',
-                '⚠️ Use Spot Fleet with instance diversification',
-                'Implement aggressive checkpointing (every 5 min)'
-              ]
-            },
-          }] : []),
-        ],
-        cross_cloud_comparison: {
-          aws: { cheapest_monthly: spotEnabled ? 36.35 : 121.18 },
-          gcp: { cheapest_monthly: spotEnabled ? 29.57 : 98.55 },
-          azure: { cheapest_monthly: spotEnabled ? 42.05 : 140.16 },
-          cheapest_overall: { provider: 'gcp', monthly_cost: spotEnabled ? 29.57 : 98.55 },
-        },
-      })
+      // Add budget if specified
+      if (formData.max_monthly_budget && formData.max_monthly_budget > 0) {
+        requestData.max_monthly_budget = parseFloat(formData.max_monthly_budget)
+      }
+      
+      console.log('Sending recommendation request:', requestData)
+      const response = await api.getMulticloudRecommendations(requestData)
+      console.log('Received recommendations:', response.data)
+      
+      setRecommendations(response.data)
     } catch (err) {
-      setError('Failed to get recommendations. Please try again.')
+      console.error('Error fetching recommendations:', err)
+      const errorMessage = err.response?.data?.detail || 'Failed to get recommendations. Please try again.'
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
