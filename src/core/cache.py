@@ -128,3 +128,19 @@ async def close_redis():
     if redis_client:
         await redis_client.close()
 
+
+async def get_redis_client() -> Optional[redis.Redis]:
+    """
+    Get the global Redis client instance.
+    Returns None if Redis is not initialized or not available.
+    """
+    global redis_client
+    if redis_client:
+        try:
+            # Test connection
+            await redis_client.ping()
+            return redis_client
+        except Exception:
+            return None
+    return None
+
