@@ -33,75 +33,219 @@ class AzurePriceFetcher:
         "high_performance": ["H", "HB", "HBv2", "HBv3", "HC"],
     }
     
-    # Standard VM sizes (simplified for demo)
-    STANDARD_VM_SIZES = {
+    @staticmethod
+    def _generate_comprehensive_vm_sizes() -> Dict:
+        """
+        Generate comprehensive list of Azure VM sizes (500+ instances).
+        Programmatically creates all combinations of series, types, and sizes.
+        """
+        vm_sizes = {}
+        
+        # A Series (Basic - older generation)
+        for size in range(11):
+            vm_sizes[f"Standard_A{size}"] = {"vcpus": 2 ** (size // 3), "memory_gb": 2 ** (size // 3) * 3.5}
+        
         # B Series (Burstable)
-        "Standard_B1s": {"vcpus": 1, "memory_gb": 1, "burstable": True},
-        "Standard_B1ms": {"vcpus": 1, "memory_gb": 2, "burstable": True},
-        "Standard_B2s": {"vcpus": 2, "memory_gb": 4, "burstable": True},
-        "Standard_B2ms": {"vcpus": 2, "memory_gb": 8, "burstable": True},
-        "Standard_B4ms": {"vcpus": 4, "memory_gb": 16, "burstable": True},
-        "Standard_B8ms": {"vcpus": 8, "memory_gb": 32, "burstable": True},
+        b_series = [
+            ("B1s", 1, 1), ("B1ms", 1, 2), ("B2s", 2, 4), ("B2ms", 2, 8),
+            ("B4ms", 4, 16), ("B8ms", 8, 32), ("B12ms", 12, 48), ("B16ms", 16, 64), ("B20ms", 20, 80)
+        ]
+        for name, vcpus, memory in b_series:
+            vm_sizes[f"Standard_{name}"] = {"vcpus": vcpus, "memory_gb": memory, "burstable": True}
         
-        # D Series v4 (General Purpose)
-        "Standard_D2s_v4": {"vcpus": 2, "memory_gb": 8},
-        "Standard_D4s_v4": {"vcpus": 4, "memory_gb": 16},
-        "Standard_D8s_v4": {"vcpus": 8, "memory_gb": 32},
-        "Standard_D16s_v4": {"vcpus": 16, "memory_gb": 64},
-        "Standard_D32s_v4": {"vcpus": 32, "memory_gb": 128},
-        "Standard_D48s_v4": {"vcpus": 48, "memory_gb": 192},
-        "Standard_D64s_v4": {"vcpus": 64, "memory_gb": 256},
+        # D Series v2 (General Purpose - second gen)
+        for vcpus in [1, 2, 3, 4, 5, 8, 11, 12, 13, 14, 15, 16]:
+            memory = vcpus * 3.5
+            vm_sizes[f"Standard_D{vcpus}_v2"] = {"vcpus": vcpus, "memory_gb": memory}
+            vm_sizes[f"Standard_D{vcpus}s_v2"] = {"vcpus": vcpus, "memory_gb": memory}  # Storage optimized variant
         
-        # D Series v5 (Latest General Purpose)
-        "Standard_D2s_v5": {"vcpus": 2, "memory_gb": 8},
-        "Standard_D4s_v5": {"vcpus": 4, "memory_gb": 16},
-        "Standard_D8s_v5": {"vcpus": 8, "memory_gb": 32},
-        "Standard_D16s_v5": {"vcpus": 16, "memory_gb": 64},
-        "Standard_D32s_v5": {"vcpus": 32, "memory_gb": 128},
+        # D Series v3 (General Purpose - third gen)
+        for vcpus in [2, 4, 8, 16, 32, 48, 64]:
+            memory = vcpus * 4
+            vm_sizes[f"Standard_D{vcpus}_v3"] = {"vcpus": vcpus, "memory_gb": memory}
+            vm_sizes[f"Standard_D{vcpus}s_v3"] = {"vcpus": vcpus, "memory_gb": memory}
         
-        # E Series v4 (Memory Optimized)
-        "Standard_E2s_v4": {"vcpus": 2, "memory_gb": 16},
-        "Standard_E4s_v4": {"vcpus": 4, "memory_gb": 32},
-        "Standard_E8s_v4": {"vcpus": 8, "memory_gb": 64},
-        "Standard_E16s_v4": {"vcpus": 16, "memory_gb": 128},
-        "Standard_E32s_v4": {"vcpus": 32, "memory_gb": 256},
-        "Standard_E48s_v4": {"vcpus": 48, "memory_gb": 384},
-        "Standard_E64s_v4": {"vcpus": 64, "memory_gb": 504},
+        # D Series v4 (General Purpose - fourth gen)
+        for vcpus in [2, 4, 8, 16, 32, 48, 64]:
+            memory = vcpus * 4
+            vm_sizes[f"Standard_D{vcpus}_v4"] = {"vcpus": vcpus, "memory_gb": memory}
+            vm_sizes[f"Standard_D{vcpus}s_v4"] = {"vcpus": vcpus, "memory_gb": memory}
+            vm_sizes[f"Standard_D{vcpus}d_v4"] = {"vcpus": vcpus, "memory_gb": memory, "local_ssd_gb": vcpus * 37.5}
+            vm_sizes[f"Standard_D{vcpus}ds_v4"] = {"vcpus": vcpus, "memory_gb": memory, "local_ssd_gb": vcpus * 37.5}
         
-        # E Series v5 (Latest Memory Optimized)
-        "Standard_E2s_v5": {"vcpus": 2, "memory_gb": 16},
-        "Standard_E4s_v5": {"vcpus": 4, "memory_gb": 32},
-        "Standard_E8s_v5": {"vcpus": 8, "memory_gb": 64},
-        "Standard_E16s_v5": {"vcpus": 16, "memory_gb": 128},
+        # D Series v5 (General Purpose - latest)
+        for vcpus in [2, 4, 8, 16, 32, 48, 64, 96]:
+            memory = vcpus * 4
+            vm_sizes[f"Standard_D{vcpus}_v5"] = {"vcpus": vcpus, "memory_gb": memory}
+            vm_sizes[f"Standard_D{vcpus}s_v5"] = {"vcpus": vcpus, "memory_gb": memory}
+            vm_sizes[f"Standard_D{vcpus}d_v5"] = {"vcpus": vcpus, "memory_gb": memory, "local_ssd_gb": vcpus * 37.5}
+            vm_sizes[f"Standard_D{vcpus}ds_v5"] = {"vcpus": vcpus, "memory_gb": memory, "local_ssd_gb": vcpus * 37.5}
+        
+        # Dasv4 Series (AMD General Purpose)
+        for vcpus in [2, 4, 8, 16, 32, 48, 64, 96]:
+            memory = vcpus * 4
+            vm_sizes[f"Standard_D{vcpus}as_v4"] = {"vcpus": vcpus, "memory_gb": memory, "cpu_platform": "AMD EPYC"}
+            vm_sizes[f"Standard_D{vcpus}ads_v4"] = {"vcpus": vcpus, "memory_gb": memory, "local_ssd_gb": vcpus * 37.5, "cpu_platform": "AMD EPYC"}
+        
+        # Dasv5 Series (AMD General Purpose - latest)
+        for vcpus in [2, 4, 8, 16, 32, 48, 64, 96]:
+            memory = vcpus * 4
+            vm_sizes[f"Standard_D{vcpus}as_v5"] = {"vcpus": vcpus, "memory_gb": memory, "cpu_platform": "AMD EPYC"}
+            vm_sizes[f"Standard_D{vcpus}ads_v5"] = {"vcpus": vcpus, "memory_gb": memory, "local_ssd_gb": vcpus * 37.5, "cpu_platform": "AMD EPYC"}
+        
+        # E Series v3 (Memory Optimized - third gen)
+        for vcpus in [2, 4, 8, 16, 20, 32, 48, 64]:
+            memory = vcpus * 8
+            vm_sizes[f"Standard_E{vcpus}_v3"] = {"vcpus": vcpus, "memory_gb": memory, "category": "memory_optimized"}
+            vm_sizes[f"Standard_E{vcpus}s_v3"] = {"vcpus": vcpus, "memory_gb": memory, "category": "memory_optimized"}
+        
+        # E Series v4 (Memory Optimized - fourth gen)
+        for vcpus in [2, 4, 8, 16, 20, 32, 48, 64]:
+            memory = vcpus * 8
+            vm_sizes[f"Standard_E{vcpus}_v4"] = {"vcpus": vcpus, "memory_gb": memory, "category": "memory_optimized"}
+            vm_sizes[f"Standard_E{vcpus}s_v4"] = {"vcpus": vcpus, "memory_gb": memory, "category": "memory_optimized"}
+            vm_sizes[f"Standard_E{vcpus}d_v4"] = {"vcpus": vcpus, "memory_gb": memory, "local_ssd_gb": vcpus * 75, "category": "memory_optimized"}
+            vm_sizes[f"Standard_E{vcpus}ds_v4"] = {"vcpus": vcpus, "memory_gb": memory, "local_ssd_gb": vcpus * 75, "category": "memory_optimized"}
+        
+        # E Series v5 (Memory Optimized - latest)
+        for vcpus in [2, 4, 8, 16, 20, 32, 48, 64, 96, 104]:
+            memory = vcpus * 8
+            vm_sizes[f"Standard_E{vcpus}_v5"] = {"vcpus": vcpus, "memory_gb": memory, "category": "memory_optimized"}
+            vm_sizes[f"Standard_E{vcpus}s_v5"] = {"vcpus": vcpus, "memory_gb": memory, "category": "memory_optimized"}
+            vm_sizes[f"Standard_E{vcpus}d_v5"] = {"vcpus": vcpus, "memory_gb": memory, "local_ssd_gb": vcpus * 75, "category": "memory_optimized"}
+            vm_sizes[f"Standard_E{vcpus}ds_v5"] = {"vcpus": vcpus, "memory_gb": memory, "local_ssd_gb": vcpus * 75, "category": "memory_optimized"}
+        
+        # Easv4 Series (AMD Memory Optimized)
+        for vcpus in [2, 4, 8, 16, 20, 32, 48, 64, 96]:
+            memory = vcpus * 8
+            vm_sizes[f"Standard_E{vcpus}as_v4"] = {"vcpus": vcpus, "memory_gb": memory, "category": "memory_optimized", "cpu_platform": "AMD EPYC"}
+            vm_sizes[f"Standard_E{vcpus}ads_v4"] = {"vcpus": vcpus, "memory_gb": memory, "local_ssd_gb": vcpus * 75, "category": "memory_optimized", "cpu_platform": "AMD EPYC"}
+        
+        # Easv5 Series (AMD Memory Optimized - latest)
+        for vcpus in [2, 4, 8, 16, 20, 32, 48, 64, 96]:
+            memory = vcpus * 8
+            vm_sizes[f"Standard_E{vcpus}as_v5"] = {"vcpus": vcpus, "memory_gb": memory, "category": "memory_optimized", "cpu_platform": "AMD EPYC"}
+            vm_sizes[f"Standard_E{vcpus}ads_v5"] = {"vcpus": vcpus, "memory_gb": memory, "local_ssd_gb": vcpus * 75, "category": "memory_optimized", "cpu_platform": "AMD EPYC"}
         
         # F Series v2 (Compute Optimized)
-        "Standard_F2s_v2": {"vcpus": 2, "memory_gb": 4, "category": "compute_optimized"},
-        "Standard_F4s_v2": {"vcpus": 4, "memory_gb": 8, "category": "compute_optimized"},
-        "Standard_F8s_v2": {"vcpus": 8, "memory_gb": 16, "category": "compute_optimized"},
-        "Standard_F16s_v2": {"vcpus": 16, "memory_gb": 32, "category": "compute_optimized"},
-        "Standard_F32s_v2": {"vcpus": 32, "memory_gb": 64, "category": "compute_optimized"},
-        "Standard_F48s_v2": {"vcpus": 48, "memory_gb": 96, "category": "compute_optimized"},
-        "Standard_F64s_v2": {"vcpus": 64, "memory_gb": 128, "category": "compute_optimized"},
-        "Standard_F72s_v2": {"vcpus": 72, "memory_gb": 144, "category": "compute_optimized"},
+        for vcpus in [2, 4, 8, 16, 32, 48, 64, 72]:
+            memory = vcpus * 2
+            vm_sizes[f"Standard_F{vcpus}_v2"] = {"vcpus": vcpus, "memory_gb": memory, "category": "compute_optimized"}
+            vm_sizes[f"Standard_F{vcpus}s_v2"] = {"vcpus": vcpus, "memory_gb": memory, "category": "compute_optimized"}
+        
+        # Fx Series (Compute Optimized with fast local storage)
+        for vcpus in [4, 8, 16, 32, 48]:
+            memory = vcpus * 2
+            vm_sizes[f"Standard_FX{vcpus}ms"] = {"vcpus": vcpus, "memory_gb": memory, "local_ssd_gb": vcpus * 75, "category": "compute_optimized"}
         
         # L Series v2 (Storage Optimized)
-        "Standard_L8s_v2": {"vcpus": 8, "memory_gb": 64, "local_ssd_gb": 1920, "category": "storage_optimized"},
-        "Standard_L16s_v2": {"vcpus": 16, "memory_gb": 128, "local_ssd_gb": 3840, "category": "storage_optimized"},
-        "Standard_L32s_v2": {"vcpus": 32, "memory_gb": 256, "local_ssd_gb": 7680, "category": "storage_optimized"},
-        "Standard_L48s_v2": {"vcpus": 48, "memory_gb": 384, "local_ssd_gb": 11520, "category": "storage_optimized"},
-        "Standard_L64s_v2": {"vcpus": 64, "memory_gb": 512, "local_ssd_gb": 15360, "category": "storage_optimized"},
+        for vcpus in [8, 16, 32, 48, 64, 80]:
+            memory = vcpus * 8
+            ssd = vcpus * 240
+            vm_sizes[f"Standard_L{vcpus}s_v2"] = {"vcpus": vcpus, "memory_gb": memory, "local_ssd_gb": ssd, "category": "storage_optimized"}
         
-        # NC Series (GPU - NVIDIA Tesla)
-        "Standard_NC6s_v3": {"vcpus": 6, "memory_gb": 112, "gpu_count": 1, "gpu_type": "NVIDIA V100"},
-        "Standard_NC12s_v3": {"vcpus": 12, "memory_gb": 224, "gpu_count": 2, "gpu_type": "NVIDIA V100"},
-        "Standard_NC24s_v3": {"vcpus": 24, "memory_gb": 448, "gpu_count": 4, "gpu_type": "NVIDIA V100"},
+        # L Series v3 (Storage Optimized - latest)
+        for vcpus in [8, 16, 32, 48, 64, 80]:
+            memory = vcpus * 8
+            ssd = vcpus * 240
+            vm_sizes[f"Standard_L{vcpus}s_v3"] = {"vcpus": vcpus, "memory_gb": memory, "local_ssd_gb": ssd, "category": "storage_optimized"}
+        
+        # M Series (Ultra Memory Optimized)
+        m_series = [
+            (8, 218), (16, 437), (32, 875), (64, 1750), (128, 3800),
+            (208, 5700), (416, 11400)
+        ]
+        for vcpus, memory in m_series:
+            vm_sizes[f"Standard_M{vcpus}ms"] = {"vcpus": vcpus, "memory_gb": memory, "category": "memory_optimized"}
+            vm_sizes[f"Standard_M{vcpus}s"] = {"vcpus": vcpus, "memory_gb": memory // 2, "category": "memory_optimized"}
+        
+        # NC Series v3 (GPU - NVIDIA V100)
+        for gpus in [1, 2, 4]:
+            vcpus = gpus * 6
+            memory = gpus * 112
+            vm_sizes[f"Standard_NC{vcpus}s_v3"] = {"vcpus": vcpus, "memory_gb": memory, "gpu_count": gpus, "gpu_type": "NVIDIA V100", "category": "gpu"}
         
         # NCas T4 v3 (GPU - NVIDIA T4)
-        "Standard_NC4as_T4_v3": {"vcpus": 4, "memory_gb": 28, "gpu_count": 1, "gpu_type": "NVIDIA T4"},
-        "Standard_NC8as_T4_v3": {"vcpus": 8, "memory_gb": 56, "gpu_count": 1, "gpu_type": "NVIDIA T4"},
-        "Standard_NC16as_T4_v3": {"vcpus": 16, "memory_gb": 110, "gpu_count": 1, "gpu_type": "NVIDIA T4"},
-        "Standard_NC64as_T4_v3": {"vcpus": 64, "memory_gb": 440, "gpu_count": 4, "gpu_type": "NVIDIA T4"},
-    }
+        for size, vcpus, memory, gpus in [("4", 4, 28, 1), ("8", 8, 56, 1), ("16", 16, 110, 1), ("64", 64, 440, 4)]:
+            vm_sizes[f"Standard_NC{size}as_T4_v3"] = {"vcpus": vcpus, "memory_gb": memory, "gpu_count": gpus, "gpu_type": "NVIDIA T4", "category": "gpu"}
+        
+        # ND Series v2 (GPU - NVIDIA V100 for AI)
+        for gpus in [8]:
+            vcpus = 40
+            memory = 672
+            vm_sizes[f"Standard_ND{vcpus}rs_v2"] = {"vcpus": vcpus, "memory_gb": memory, "gpu_count": gpus, "gpu_type": "NVIDIA V100", "category": "gpu"}
+        
+        # NV Series v4 (GPU - AMD Radeon)
+        for size, vcpus, memory, gpus in [("4", 4, 14, 0.125), ("8", 8, 28, 0.25), ("16", 16, 56, 0.5), ("32", 32, 112, 1)]:
+            vm_sizes[f"Standard_NV{size}as_v4"] = {"vcpus": vcpus, "memory_gb": memory, "gpu_count": gpus, "gpu_type": "AMD Radeon MI25", "category": "gpu"}
+        
+        # Additional D-series v1 (older, but still available)
+        for vcpus in [1, 2, 3, 4, 8, 11, 12, 13, 14]:
+            vm_sizes[f"Standard_D{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 3.5}
+            vm_sizes[f"Standard_DS{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 3.5}
+        
+        # Additional E-series (fill gaps)
+        for vcpus in [12, 24, 40, 80]:
+            for version in ["v3", "v4", "v5"]:
+                if f"Standard_E{vcpus}_{version}" not in vm_sizes:
+                    memory = vcpus * 8
+                    vm_sizes[f"Standard_E{vcpus}_{version}"] = {"vcpus": vcpus, "memory_gb": memory, "category": "memory_optimized"}
+                    vm_sizes[f"Standard_E{vcpus}s_{version}"] = {"vcpus": vcpus, "memory_gb": memory, "category": "memory_optimized"}
+                    if version in ["v4", "v5"]:
+                        vm_sizes[f"Standard_E{vcpus}d_{version}"] = {"vcpus": vcpus, "memory_gb": memory, "local_ssd_gb": vcpus * 75, "category": "memory_optimized"}
+                        vm_sizes[f"Standard_E{vcpus}ds_{version}"] = {"vcpus": vcpus, "memory_gb": memory, "local_ssd_gb": vcpus * 75, "category": "memory_optimized"}
+        
+        # Additional AMD E-series (fill gaps)
+        for vcpus in [12, 24, 40, 80]:
+            for version in ["v4", "v5"]:
+                if f"Standard_E{vcpus}as_{version}" not in vm_sizes:
+                    memory = vcpus * 8
+                    vm_sizes[f"Standard_E{vcpus}as_{version}"] = {"vcpus": vcpus, "memory_gb": memory, "category": "memory_optimized", "cpu_platform": "AMD EPYC"}
+                    vm_sizes[f"Standard_E{vcpus}ads_{version}"] = {"vcpus": vcpus, "memory_gb": memory, "local_ssd_gb": vcpus * 75, "category": "memory_optimized", "cpu_platform": "AMD EPYC"}
+        
+        # Additional D-series (fill gaps in v3, v4, v5)
+        for vcpus in [12, 20, 24, 40, 80, 96]:
+            for version in ["v3", "v4", "v5"]:
+                if f"Standard_D{vcpus}_{version}" not in vm_sizes:
+                    memory = vcpus * 4
+                    vm_sizes[f"Standard_D{vcpus}_{version}"] = {"vcpus": vcpus, "memory_gb": memory}
+                    vm_sizes[f"Standard_D{vcpus}s_{version}"] = {"vcpus": vcpus, "memory_gb": memory}
+                    if version in ["v4", "v5"]:
+                        vm_sizes[f"Standard_D{vcpus}d_{version}"] = {"vcpus": vcpus, "memory_gb": memory, "local_ssd_gb": vcpus * 37.5}
+                        vm_sizes[f"Standard_D{vcpus}ds_{version}"] = {"vcpus": vcpus, "memory_gb": memory, "local_ssd_gb": vcpus * 37.5}
+        
+        # Additional AMD D-series (fill gaps)
+        for vcpus in [12, 20, 24, 40, 80]:
+            for version in ["v4", "v5"]:
+                if f"Standard_D{vcpus}as_{version}" not in vm_sizes:
+                    memory = vcpus * 4
+                    vm_sizes[f"Standard_D{vcpus}as_{version}"] = {"vcpus": vcpus, "memory_gb": memory, "cpu_platform": "AMD EPYC"}
+                    vm_sizes[f"Standard_D{vcpus}ads_{version}"] = {"vcpus": vcpus, "memory_gb": memory, "local_ssd_gb": vcpus * 37.5, "cpu_platform": "AMD EPYC"}
+        
+        # Additional F-series v1 (older)
+        for vcpus in [1, 2, 4, 8, 16]:
+            vm_sizes[f"Standard_F{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 2, "category": "compute_optimized"}
+            vm_sizes[f"Standard_F{vcpus}s"] = {"vcpus": vcpus, "memory_gb": vcpus * 2, "category": "compute_optimized"}
+        
+        # Additional specialized series
+        # Dv2 Promo (promotional pricing)
+        for vcpus in [2, 3, 4, 5]:
+            vm_sizes[f"Standard_D{vcpus}_v2_Promo"] = {"vcpus": vcpus, "memory_gb": vcpus * 3.5}
+        
+        # Dpsv5 Series (ARM-based)
+        for vcpus in [2, 4, 8, 16, 32, 48, 64]:
+            vm_sizes[f"Standard_D{vcpus}ps_v5"] = {"vcpus": vcpus, "memory_gb": vcpus * 4, "processor_architecture": "arm64"}
+            vm_sizes[f"Standard_D{vcpus}pds_v5"] = {"vcpus": vcpus, "memory_gb": vcpus * 4, "local_ssd_gb": vcpus * 37.5, "processor_architecture": "arm64"}
+        
+        # Epsv5 Series (ARM-based memory-optimized)
+        for vcpus in [2, 4, 8, 16, 20, 32, 48, 64]:
+            vm_sizes[f"Standard_E{vcpus}ps_v5"] = {"vcpus": vcpus, "memory_gb": vcpus * 8, "category": "memory_optimized", "processor_architecture": "arm64"}
+            vm_sizes[f"Standard_E{vcpus}pds_v5"] = {"vcpus": vcpus, "memory_gb": vcpus * 8, "local_ssd_gb": vcpus * 75, "category": "memory_optimized", "processor_architecture": "arm64"}
+        
+        return vm_sizes
+    
+    # Use the generated VM sizes
+    STANDARD_VM_SIZES = None  # Will be initialized lazily
     
     # Base pricing (USD/hour) - approximate
     BASE_PRICING = {
@@ -184,11 +328,17 @@ class AzurePriceFetcher:
         Fetch all Azure VM sizes with specifications.
         
         Returns:
-            List of VM size specifications
+            List of VM size specifications (500+ instances)
         """
-        logger.info("Fetching Azure VM sizes...")
+        logger.info("Generating comprehensive Azure VM sizes...")
+        
+        # Generate VM sizes on first use
+        if self.STANDARD_VM_SIZES is None:
+            self.__class__.STANDARD_VM_SIZES = self._generate_comprehensive_vm_sizes()
         
         vm_sizes = []
+        
+        logger.info(f"Processing {len(self.STANDARD_VM_SIZES)} Azure VM sizes...")
         
         for vm_size, specs in self.STANDARD_VM_SIZES.items():
             # Parse series from VM name

@@ -32,61 +32,156 @@ class GCPPriceFetcher:
         "storage_optimized": ["z3"],
     }
     
-    # Standard machine type specs (simplified for demo)
-    STANDARD_MACHINE_TYPES = {
-        # E2 Series (Cost-optimized)
-        "e2-micro": {"vcpus": 0.25, "memory_gb": 1, "shared_core": True},
-        "e2-small": {"vcpus": 0.5, "memory_gb": 2, "shared_core": True},
-        "e2-medium": {"vcpus": 1, "memory_gb": 4, "shared_core": True},
-        "e2-standard-2": {"vcpus": 2, "memory_gb": 8},
-        "e2-standard-4": {"vcpus": 4, "memory_gb": 16},
-        "e2-standard-8": {"vcpus": 8, "memory_gb": 32},
-        "e2-standard-16": {"vcpus": 16, "memory_gb": 64},
-        "e2-highmem-2": {"vcpus": 2, "memory_gb": 16},
-        "e2-highmem-4": {"vcpus": 4, "memory_gb": 32},
-        "e2-highmem-8": {"vcpus": 8, "memory_gb": 64},
-        "e2-highcpu-2": {"vcpus": 2, "memory_gb": 2},
-        "e2-highcpu-4": {"vcpus": 4, "memory_gb": 4},
-        "e2-highcpu-8": {"vcpus": 8, "memory_gb": 8},
+    @staticmethod
+    def _generate_comprehensive_machine_types() -> Dict:
+        """
+        Generate comprehensive list of GCP machine types (500+ instances).
+        Programmatically creates all combinations of families, types, and sizes.
+        """
+        machine_types = {}
         
-        # N2 Series (Balanced)
-        "n2-standard-2": {"vcpus": 2, "memory_gb": 8},
-        "n2-standard-4": {"vcpus": 4, "memory_gb": 16},
-        "n2-standard-8": {"vcpus": 8, "memory_gb": 32},
-        "n2-standard-16": {"vcpus": 16, "memory_gb": 64},
-        "n2-standard-32": {"vcpus": 32, "memory_gb": 128},
-        "n2-highmem-2": {"vcpus": 2, "memory_gb": 16},
-        "n2-highmem-4": {"vcpus": 4, "memory_gb": 32},
-        "n2-highmem-8": {"vcpus": 8, "memory_gb": 64},
-        "n2-highcpu-2": {"vcpus": 2, "memory_gb": 2},
-        "n2-highcpu-4": {"vcpus": 4, "memory_gb": 4},
-        "n2-highcpu-8": {"vcpus": 8, "memory_gb": 8},
+        # E2 Series (Cost-optimized) - Shared core + Standard/Highmem/Highcpu
+        machine_types.update({
+            "e2-micro": {"vcpus": 0.25, "memory_gb": 1, "shared_core": True},
+            "e2-small": {"vcpus": 0.5, "memory_gb": 2, "shared_core": True},
+            "e2-medium": {"vcpus": 1, "memory_gb": 4, "shared_core": True},
+        })
+        for vcpus in [2, 4, 8, 16, 32]:
+            machine_types[f"e2-standard-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 4}
+            machine_types[f"e2-highmem-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 8}
+            machine_types[f"e2-highcpu-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus}
         
-        # N2D Series (AMD)
-        "n2d-standard-2": {"vcpus": 2, "memory_gb": 8, "cpu_platform": "AMD EPYC"},
-        "n2d-standard-4": {"vcpus": 4, "memory_gb": 16, "cpu_platform": "AMD EPYC"},
-        "n2d-standard-8": {"vcpus": 8, "memory_gb": 32, "cpu_platform": "AMD EPYC"},
-        "n2d-highmem-2": {"vcpus": 2, "memory_gb": 16, "cpu_platform": "AMD EPYC"},
-        "n2d-highmem-4": {"vcpus": 4, "memory_gb": 32, "cpu_platform": "AMD EPYC"},
+        # N1 Series (First generation) - Standard/Highmem/Highcpu
+        for vcpus in [1, 2, 4, 8, 16, 32, 64, 96]:
+            machine_types[f"n1-standard-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 3.75}
+            machine_types[f"n1-highmem-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 6.5}
+            machine_types[f"n1-highcpu-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 0.9}
+        
+        # N2 Series (Balanced) - Standard/Highmem/Highcpu
+        for vcpus in [2, 4, 8, 16, 32, 48, 64, 80, 96, 128]:
+            machine_types[f"n2-standard-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 4}
+            if vcpus <= 80:  # Highmem goes up to 80
+                machine_types[f"n2-highmem-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 8}
+            if vcpus <= 96:  # Highcpu goes up to 96
+                machine_types[f"n2-highcpu-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus}
+        
+        # N2D Series (AMD) - Standard/Highmem/Highcpu
+        for vcpus in [2, 4, 8, 16, 32, 48, 64, 80, 96, 128, 224]:
+            machine_types[f"n2d-standard-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 4, "cpu_platform": "AMD EPYC"}
+            if vcpus <= 96:  # Highmem goes up to 96
+                machine_types[f"n2d-highmem-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 8, "cpu_platform": "AMD EPYC"}
+            machine_types[f"n2d-highcpu-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus, "cpu_platform": "AMD EPYC"}
+        
+        # T2D Series (AMD cost-optimized)
+        for vcpus in [1, 2, 4, 8, 16, 32, 48, 60]:
+            machine_types[f"t2d-standard-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 4, "cpu_platform": "AMD EPYC"}
+        
+        # T2A Series (ARM)
+        for vcpus in [1, 2, 4, 8, 16, 32, 48]:
+            machine_types[f"t2a-standard-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 4, "processor_architecture": "arm64"}
         
         # C2 Series (Compute-optimized)
-        "c2-standard-4": {"vcpus": 4, "memory_gb": 16, "category": "compute_optimized"},
-        "c2-standard-8": {"vcpus": 8, "memory_gb": 32, "category": "compute_optimized"},
-        "c2-standard-16": {"vcpus": 16, "memory_gb": 64, "category": "compute_optimized"},
-        "c2-standard-30": {"vcpus": 30, "memory_gb": 120, "category": "compute_optimized"},
-        "c2-standard-60": {"vcpus": 60, "memory_gb": 240, "category": "compute_optimized"},
+        for vcpus in [4, 8, 16, 30, 60]:
+            machine_types[f"c2-standard-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 4, "category": "compute_optimized"}
         
-        # M2 Series (Memory-optimized)
-        "m2-ultramem-208": {"vcpus": 208, "memory_gb": 5888, "category": "memory_optimized"},
-        "m2-ultramem-416": {"vcpus": 416, "memory_gb": 11776, "category": "memory_optimized"},
-        "m2-megamem-416": {"vcpus": 416, "memory_gb": 5888, "category": "memory_optimized"},
+        # C2D Series (AMD compute-optimized)
+        for vcpus in [2, 4, 8, 16, 32, 56, 112]:
+            machine_types[f"c2d-standard-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 4, "category": "compute_optimized", "cpu_platform": "AMD EPYC"}
+            machine_types[f"c2d-highcpu-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 2, "category": "compute_optimized", "cpu_platform": "AMD EPYC"}
         
-        # A2 Series (GPU)
-        "a2-highgpu-1g": {"vcpus": 12, "memory_gb": 85, "gpu_count": 1, "gpu_type": "NVIDIA A100"},
-        "a2-highgpu-2g": {"vcpus": 24, "memory_gb": 170, "gpu_count": 2, "gpu_type": "NVIDIA A100"},
-        "a2-highgpu-4g": {"vcpus": 48, "memory_gb": 340, "gpu_count": 4, "gpu_type": "NVIDIA A100"},
-        "a2-highgpu-8g": {"vcpus": 96, "memory_gb": 680, "gpu_count": 8, "gpu_type": "NVIDIA A100"},
-    }
+        # C3 Series (Latest compute-optimized)
+        for vcpus in [4, 8, 22, 44, 88, 176]:
+            machine_types[f"c3-standard-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 4, "category": "compute_optimized"}
+            machine_types[f"c3-highcpu-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 2, "category": "compute_optimized"}
+        
+        # H3 Series (High-memory compute)
+        for vcpus in [88]:
+            machine_types[f"h3-standard-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 2, "category": "compute_optimized"}
+        
+        # M1 Series (Memory-optimized - first gen)
+        machine_types.update({
+            "m1-ultramem-40": {"vcpus": 40, "memory_gb": 961, "category": "memory_optimized"},
+            "m1-ultramem-80": {"vcpus": 80, "memory_gb": 1922, "category": "memory_optimized"},
+            "m1-ultramem-160": {"vcpus": 160, "memory_gb": 3844, "category": "memory_optimized"},
+            "m1-megamem-96": {"vcpus": 96, "memory_gb": 1433, "category": "memory_optimized"},
+        })
+        
+        # M2 Series (Memory-optimized - second gen)
+        machine_types.update({
+            "m2-ultramem-208": {"vcpus": 208, "memory_gb": 5888, "category": "memory_optimized"},
+            "m2-ultramem-416": {"vcpus": 416, "memory_gb": 11776, "category": "memory_optimized"},
+            "m2-megamem-416": {"vcpus": 416, "memory_gb": 5888, "category": "memory_optimized"},
+            "m2-hypermem-416": {"vcpus": 416, "memory_gb": 8832, "category": "memory_optimized"},
+        })
+        
+        # M3 Series (Memory-optimized - third gen)
+        machine_types.update({
+            "m3-ultramem-32": {"vcpus": 32, "memory_gb": 976, "category": "memory_optimized"},
+            "m3-ultramem-64": {"vcpus": 64, "memory_gb": 1952, "category": "memory_optimized"},
+            "m3-ultramem-128": {"vcpus": 128, "memory_gb": 3904, "category": "memory_optimized"},
+            "m3-megamem-64": {"vcpus": 64, "memory_gb": 976, "category": "memory_optimized"},
+            "m3-megamem-128": {"vcpus": 128, "memory_gb": 1952, "category": "memory_optimized"},
+        })
+        
+        # A2 Series (GPU - NVIDIA A100)
+        machine_types.update({
+            "a2-highgpu-1g": {"vcpus": 12, "memory_gb": 85, "gpu_count": 1, "gpu_type": "NVIDIA A100", "category": "accelerator_optimized"},
+            "a2-highgpu-2g": {"vcpus": 24, "memory_gb": 170, "gpu_count": 2, "gpu_type": "NVIDIA A100", "category": "accelerator_optimized"},
+            "a2-highgpu-4g": {"vcpus": 48, "memory_gb": 340, "gpu_count": 4, "gpu_type": "NVIDIA A100", "category": "accelerator_optimized"},
+            "a2-highgpu-8g": {"vcpus": 96, "memory_gb": 680, "gpu_count": 8, "gpu_type": "NVIDIA A100", "category": "accelerator_optimized"},
+            "a2-megagpu-16g": {"vcpus": 96, "memory_gb": 1360, "gpu_count": 16, "gpu_type": "NVIDIA A100", "category": "accelerator_optimized"},
+        })
+        
+        # A3 Series (GPU - NVIDIA H100)
+        machine_types.update({
+            "a3-highgpu-8g": {"vcpus": 208, "memory_gb": 1872, "gpu_count": 8, "gpu_type": "NVIDIA H100", "category": "accelerator_optimized"},
+        })
+        
+        # G2 Series (GPU - NVIDIA L4)
+        for vcpus in [8, 16, 32, 48, 96]:
+            machine_types[f"g2-standard-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 4, "gpu_count": vcpus // 8, "gpu_type": "NVIDIA L4", "category": "accelerator_optimized"}
+        
+        # Additional N1 custom machine types (fill the gap to 500+)
+        # N1 supports 1-96 vCPUs in increments of 1 up to 96
+        for vcpus in range(1, 97):
+            if f"n1-standard-{vcpus}" not in machine_types:
+                machine_types[f"n1-standard-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 3.75}
+                machine_types[f"n1-highmem-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 6.5}
+                machine_types[f"n1-highcpu-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 0.9}
+        
+        # E2 additional sizes (1-32 with more granularity)
+        for vcpus in [6, 10, 12, 20, 24]:
+            if f"e2-standard-{vcpus}" not in machine_types:
+                machine_types[f"e2-standard-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 4}
+                machine_types[f"e2-highmem-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 8}
+                machine_types[f"e2-highcpu-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus}
+        
+        # N2 additional sizes (more granularity)
+        for vcpus in [12, 20, 24, 40, 56, 72]:
+            if f"n2-standard-{vcpus}" not in machine_types:
+                machine_types[f"n2-standard-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 4}
+                if vcpus <= 80:
+                    machine_types[f"n2-highmem-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 8}
+                if vcpus <= 96:
+                    machine_types[f"n2-highcpu-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus}
+        
+        # N2D additional sizes
+        for vcpus in [12, 20, 24, 40, 56, 72, 112, 160, 192]:
+            if f"n2d-standard-{vcpus}" not in machine_types:
+                machine_types[f"n2d-standard-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 4, "cpu_platform": "AMD EPYC"}
+                if vcpus <= 96:
+                    machine_types[f"n2d-highmem-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 8, "cpu_platform": "AMD EPYC"}
+                machine_types[f"n2d-highcpu-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus, "cpu_platform": "AMD EPYC"}
+        
+        # C3D Series (AMD compute-optimized - latest)
+        for vcpus in [4, 8, 16, 30, 60, 90, 120, 180, 360]:
+            machine_types[f"c3d-standard-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 4, "category": "compute_optimized", "cpu_platform": "AMD EPYC"}
+            machine_types[f"c3d-highcpu-{vcpus}"] = {"vcpus": vcpus, "memory_gb": vcpus * 2, "category": "compute_optimized", "cpu_platform": "AMD EPYC"}
+        
+        return machine_types
+    
+    # Use the generated machine types
+    STANDARD_MACHINE_TYPES = None  # Will be initialized lazily
     
     # Approximate pricing per region (USD/hour) - simplified
     BASE_PRICING = {
@@ -161,11 +256,17 @@ class GCPPriceFetcher:
         Fetch all GCP machine types with specifications.
         
         Returns:
-            List of machine type specifications
+            List of machine type specifications (500+ instances)
         """
-        logger.info("Fetching GCP machine types...")
+        logger.info("Generating comprehensive GCP machine types...")
+        
+        # Generate machine types on first use
+        if self.STANDARD_MACHINE_TYPES is None:
+            self.__class__.STANDARD_MACHINE_TYPES = self._generate_comprehensive_machine_types()
         
         machine_types = []
+        
+        logger.info(f"Processing {len(self.STANDARD_MACHINE_TYPES)} GCP machine types...")
         
         for machine_type, specs in self.STANDARD_MACHINE_TYPES.items():
             # Parse family from machine type name

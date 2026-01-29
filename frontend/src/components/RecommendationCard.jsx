@@ -98,7 +98,12 @@ export default function RecommendationCard({ recommendation, rank, onClick }) {
               </div>
               <div className="flex items-center gap-2">
                 <DollarSign className="w-4 h-4 text-slate-400" />
-                <span className="text-sm text-slate-300">${pricing?.monthly_cost?.toFixed(2)}/mo</span>
+                <span className="text-sm text-slate-300">
+                  {pricing?.monthly_cost > 0 
+                    ? `$${pricing.monthly_cost.toFixed(2)}/mo` 
+                    : <span className="text-slate-500">N/A</span>
+                  }
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <Zap className="w-4 h-4 text-slate-400" />
