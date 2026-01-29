@@ -23,7 +23,7 @@ A production-ready full-stack application that helps you find the most cost-effe
 ### Core Capabilities
 
 - **🌐 Multi-Cloud Support** - Compare instances across AWS, GCP, and Azure in one place
-- **📊 Instance Discovery** - Browse and filter 700+ instance types across all major clouds
+- **📊 Instance Discovery** - Browse and filter 2,000+ instance types across all major clouds
 - **💰 Cross-Cloud Comparison** - Find the cheapest option across providers for your workload
 - **🤖 Smart Recommendations** - Intelligent recommendations considering all cloud options
 - **🔄 Instance Mapping** - Find equivalent instances across different cloud providers
@@ -37,9 +37,9 @@ A production-ready full-stack application that helps you find the most cost-effe
 
 | Provider | Instance Types | Regions | Spot Support |
 |----------|---------------|---------|--------------|
-| **AWS** | EC2 (600+ types) | 17 regions | ✅ Spot Instances |
-| **GCP** | Compute Engine (50+ types) | 28 regions | ✅ Preemptible/Spot VMs |
-| **Azure** | Virtual Machines (60+ types) | 34 regions | ✅ Spot VMs |
+| **AWS** | EC2 (1,100+ types) | 5 regions | ✅ Spot Instances |
+| **GCP** | Compute Engine (500+ types) | 22 regions | ✅ Preemptible/Spot VMs |
+| **Azure** | Virtual Machines (500+ types) | 27 regions | ✅ Spot VMs |
 
 ### Pricing Strategies Analyzed
 
@@ -186,13 +186,13 @@ AWS_SECRET_ACCESS_KEY=your_secret_key_here
 AWS_DEFAULT_REGION=us-east-1
 
 # 2. Run the data fetcher
-python fetch_real_data.py
+python scripts/fetch_real_data.py
 ```
 
 This will fetch:
-- ✅ **600+ AWS EC2 instances** from AWS Pricing API
-- ✅ **50+ GCP Compute Engine instances** from public APIs (no credentials needed)
-- ✅ **60+ Azure VM instances** from public APIs (no credentials needed)
+- ✅ **1,100+ AWS EC2 instances** from AWS Pricing API
+- ✅ **500+ GCP Compute Engine instances** programmatically generated (no credentials needed)
+- ✅ **500+ Azure VM instances** programmatically generated (no credentials needed)
 
 **Fetch time**: 10-15 minutes for the first run.
 
@@ -253,10 +253,10 @@ For complete API documentation, visit `/docs` endpoint when running locally.
 
 ```bash
 # Run quick tests
-./quick_test.sh
+./scripts/quick_test.sh
 
 # Run full integration tests
-./integration_test.sh
+./scripts/integration_test.sh
 
 # Run specific tests
 pytest tests/test_api.py -v
