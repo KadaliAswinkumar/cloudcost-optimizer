@@ -72,11 +72,18 @@ async def main():
             
             await db.commit()
         
-        # Fetch pricing for multiple regions (expanded for more coverage)
+        # Fetch pricing for multiple regions (expanded for MORE coverage)
         gcp_regions = [
-            "us-central1", "us-east1", "us-west1", "us-west2",
-            "europe-west1", "europe-west2", "europe-west3", "europe-west4",
-            "asia-east1", "asia-northeast1", "asia-southeast1"
+            # US regions
+            "us-central1", "us-east1", "us-east4", "us-west1", "us-west2", "us-west3", "us-west4",
+            # Europe regions
+            "europe-west1", "europe-west2", "europe-west3", "europe-west4", "europe-west6",
+            "europe-north1", "europe-central2",
+            # Asia regions
+            "asia-east1", "asia-east2", "asia-northeast1", "asia-northeast2", "asia-northeast3",
+            "asia-south1", "asia-south2", "asia-southeast1", "asia-southeast2",
+            # Other regions
+            "australia-southeast1", "southamerica-east1", "northamerica-northeast1"
         ]
         
         for region in gcp_regions:
@@ -143,11 +150,19 @@ async def main():
             
             await db.commit()
         
-        # Fetch pricing for multiple regions (expanded for more coverage)
+        # Fetch pricing for multiple regions (expanded for MORE coverage)
         azure_regions = [
-            "eastus", "eastus2", "westus", "westus2", "westus3",
-            "northeurope", "westeurope", "uksouth",
-            "southeastasia", "australiaeast", "japaneast"
+            # US regions
+            "eastus", "eastus2", "centralus", "northcentralus", "southcentralus",
+            "westus", "westus2", "westus3", "westcentralus",
+            # Europe regions
+            "northeurope", "westeurope", "francecentral", "germanywestcentral",
+            "norwayeast", "switzerlandnorth", "uksouth", "ukwest",
+            # Asia regions
+            "eastasia", "southeastasia", "japaneast", "japanwest", "koreacentral",
+            "southindia", "centralindia", "westindia",
+            # Other regions  
+            "australiaeast", "australiasoutheast", "brazilsouth", "canadacentral", "canadaeast"
         ]
         
         for region in azure_regions:
@@ -184,65 +199,81 @@ async def main():
     # ==================== AWS ====================
     print("\n📊 3/3 Fetching AWS EC2 Data...")
     print("-" * 70)
+    
+    aws_fetcher = AWSPriceFetcher()
+    
+    # Fetch instance types (specs) - wrapped in own try-except
     try:
-        aws_fetcher = AWSPriceFetcher()
-        
-        # Fetch instance types (specs)
         instance_types = await aws_fetcher.fetch_instance_types()
         
         async with get_db_context() as db:
             for it in instance_types:
-                instance = CloudInstance(
-                    provider="aws",
-                    instance_type=it["instance_type"],
-                    instance_family=it["instance_family"],
-                    display_name=it.get("instance_type"),
-                    vcpus=it["vcpus"],
-                    memory_gb=it["memory_gb"],
-                    processor_architecture=it.get("processor_architecture", "x86_64"),
-                    storage_type=it.get("storage_type"),
-                    category="general_purpose",
-                    is_current_generation=it.get("current_generation", True),
-                    supports_spot=True,
-                )
-                await db.merge(instance)  # merge instead of add - updates if exists, inserts if not
-                stats["aws"]["instances"] += 1
+                try:
+                    instance = CloudInstance(
+                        provider="aws",
+                        instance_type=it["instance_type"],
+                        instance_family=it["instance_family"],
+                        display_name=it.get("instance_type"),
+                        vcpus=it["vcpus"],
+                        memory_gb=it["memory_gb"],
+                        processor_architecture=it.get("processor_architecture", "x86_64"),
+                        storage_type=it.get("storage_type"),
+                        category="general_purpose",
+                        is_current_generation=it.get("current_generation", True),
+                        supports_spot=True,
+                    )
+                    await db.merge(instance)  # merge instead of add - updates if exists, inserts if not
+                    stats["aws"]["instances"] += 1
+                except Exception as inst_err:
+                    # Skip this instance and continue
+                    logger.warning(f"Skipping AWS instance {it.get('instance_type')}: {inst_err}")
             
             await db.commit()
         
-        # Fetch pricing for multiple regions
-        aws_regions = ["us-east-1", "us-west-2", "eu-west-1"]
-        
-        for region in aws_regions:
+        logger.info(f"✓ AWS instances: {stats['aws']['instances']}")
+        print(f"✅ AWS instances: {stats['aws']['instances']}")
+    except Exception as e:
+        logger.error(f"AWS instance fetch error: {e}")
+        print(f"⚠️  AWS instance fetch had errors (continuing to pricing...)")
+    
+    # Fetch pricing for multiple regions - ALWAYS TRY even if instances failed
+    aws_regions = ["us-east-1", "us-west-2", "eu-west-1", "ap-south-1", "eu-central-1"]
+    
+    for region in aws_regions:
+        try:
             # Fetch on-demand pricing
             pricing_data = await aws_fetcher.fetch_on_demand_pricing(region)
             
             async with get_db_context() as db:
                 for price in pricing_data:
-                    pricing = CloudPricing(
-                        provider="aws",
-                        instance_type=price["instance_type"],
-                        region=price["region"],
-                        pricing_type="on_demand",
-                        os_type=price.get("operating_system", "Linux").lower(),
-                        hourly_price=price["price_per_hour"],
-                        monthly_price=price["price_per_hour"] * 730,
-                        currency="USD",
-                        effective_date=price.get("effective_date", datetime.utcnow()),
-                    )
-                    await db.merge(pricing)  # merge instead of add - updates if exists, inserts if not
-                    stats["aws"]["pricing"] += 1
+                    try:
+                        pricing = CloudPricing(
+                            provider="aws",
+                            instance_type=price["instance_type"],
+                            region=price["region"],
+                            pricing_type="on_demand",
+                            os_type=price.get("operating_system", "Linux").lower(),
+                            hourly_price=float(price["price_per_hour"]),
+                            monthly_price=float(price["price_per_hour"]) * 730,
+                            currency="USD",
+                            effective_date=price.get("effective_date", datetime.utcnow()),
+                        )
+                        await db.merge(pricing)  # merge instead of add - updates if exists, inserts if not
+                        stats["aws"]["pricing"] += 1
+                    except Exception as price_err:
+                        # Skip this price and continue
+                        logger.warning(f"Skipping AWS price for {price.get('instance_type')}: {price_err}")
                 
                 await db.commit()
-        
-        logger.info(f"✓ AWS: {stats['aws']['instances']} instances, {stats['aws']['pricing']} pricing records")
-        print(f"✅ AWS: {stats['aws']['instances']} instances, {stats['aws']['pricing']} pricing records")
-        
-    except Exception as e:
-        error_msg = f"AWS fetch failed: {str(e)}"
-        logger.error(error_msg)
-        stats["errors"].append(error_msg)
-        print(f"❌ AWS failed: {str(e)}")
+            
+            logger.info(f"✓ AWS {region}: fetched {len(pricing_data)} prices")
+        except Exception as region_err:
+            logger.error(f"AWS pricing fetch failed for {region}: {region_err}")
+            stats["errors"].append(f"AWS {region}: {region_err}")
+            # Continue to next region
+    
+    logger.info(f"✓ AWS TOTAL: {stats['aws']['instances']} instances, {stats['aws']['pricing']} pricing records")
+    print(f"✅ AWS TOTAL: {stats['aws']['instances']} instances, {stats['aws']['pricing']} pricing records")
     
     # ==================== SUMMARY ====================
     end_time = datetime.now()

@@ -347,14 +347,60 @@ async def list_multicloud_instances(
                 detail="Failed to retrieve instances. Please try again later."
             )
         
+        # Fetch pricing for all returned instances in one query
+        pricing_map = {}
+        if instances:
+            try:
+                # Build list of (provider, instance_type) tuples
+                instance_keys = [(inst.provider, inst.instance_type) for inst in instances]
+                
+                # Query for cheapest on-demand pricing for these instances
+                pricing_query = select(
+                    CloudPricing.provider,
+                    CloudPricing.instance_type,
+                    func.min(CloudPricing.hourly_price).label('price')
+                ).where(
+                    CloudPricing.pricing_type == 'on_demand'
+                ).group_by(
+                    CloudPricing.provider,
+                    CloudPricing.instance_type
+                )
+                
+                # Filter to only the instances we retrieved
+                pricing_conditions = []
+                for provider_val, instance_type_val in instance_keys:
+                    pricing_conditions.append(
+                        and_(
+                            CloudPricing.provider == provider_val,
+                            CloudPricing.instance_type == instance_type_val
+                        )
+                    )
+                
+                if pricing_conditions:
+                    pricing_query = pricing_query.where(or_(*pricing_conditions))
+                
+                pricing_result = await db.execute(pricing_query)
+                pricing_rows = pricing_result.all()
+                
+                # Build map of (provider, instance_type) -> price
+                for row in pricing_rows:
+                    pricing_map[(row.provider, row.instance_type)] = float(row.price) if row.price else 0.0
+                
+                logger.info(f"Fetched pricing for {len(pricing_map)} instances")
+            except Exception as e:
+                logger.warning(f"Error fetching pricing: {e}")
+                # Continue without pricing data
+        
         # Format response
         instance_data = []
         for instance in instances:
             try:
                 instance_dict = instance.to_dict()
-                # We'll fetch pricing separately later if needed
-                # For now, set to 0.0 to keep the response format consistent
-                instance_dict["hourly_price"] = 0.0
+                # Get pricing from map, default to 0.0 if not found
+                instance_dict["hourly_price"] = pricing_map.get(
+                    (instance.provider, instance.instance_type), 
+                    0.0
+                )
                 instance_data.append(instance_dict)
             except Exception as e:
                 logger.warning(f"Error formatting instance: {e}")
