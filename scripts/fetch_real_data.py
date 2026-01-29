@@ -49,6 +49,14 @@ async def main():
         # Fetch machine types (specs)
         machine_types = await gcp_fetcher.fetch_machine_types()
         
+        # Clear existing GCP instances to avoid duplicates (fresh start)
+        async with get_db_context() as db:
+            from sqlalchemy import delete
+            await db.execute(delete(CloudInstance).where(CloudInstance.provider == "gcp"))
+            await db.commit()
+            logger.info("Cleared existing GCP instances")
+        
+        # Now insert all new GCP instances
         async with get_db_context() as db:
             for mt in machine_types:
                 instance = CloudInstance(
@@ -67,10 +75,18 @@ async def main():
                     gpu_count=mt.get("gpu_count"),
                     gpu_type=mt.get("gpu_type"),
                 )
-                await db.merge(instance)  # merge instead of add - updates if exists, inserts if not
+                db.add(instance)
                 stats["gcp"]["instances"] += 1
             
             await db.commit()
+            logger.info(f"✓ Inserted {stats['gcp']['instances']} GCP instances")
+        
+        # Clear existing GCP pricing to avoid duplicates
+        async with get_db_context() as db:
+            from sqlalchemy import delete
+            await db.execute(delete(CloudPricing).where(CloudPricing.provider == "gcp"))
+            await db.commit()
+            logger.info("Cleared existing GCP pricing")
         
         # Fetch pricing for multiple regions (expanded for MORE coverage)
         gcp_regions = [
@@ -103,7 +119,7 @@ async def main():
                         currency=price.get("currency", "USD"),
                         effective_date=price.get("effective_date", datetime.utcnow()),
                     )
-                    await db.merge(pricing)  # merge instead of add - updates if exists, inserts if not
+                    db.add(pricing)
                     stats["gcp"]["pricing"] += 1
                 
                 await db.commit()
@@ -126,6 +142,14 @@ async def main():
         # Fetch VM sizes (specs)
         vm_sizes = await azure_fetcher.fetch_vm_sizes()
         
+        # Clear existing Azure instances to avoid duplicates (fresh start)
+        async with get_db_context() as db:
+            from sqlalchemy import delete
+            await db.execute(delete(CloudInstance).where(CloudInstance.provider == "azure"))
+            await db.commit()
+            logger.info("Cleared existing Azure instances")
+        
+        # Now insert all new Azure instances
         async with get_db_context() as db:
             for vm in vm_sizes:
                 instance = CloudInstance(
@@ -145,10 +169,18 @@ async def main():
                     gpu_count=vm.get("gpu_count"),
                     gpu_type=vm.get("gpu_type"),
                 )
-                await db.merge(instance)  # merge instead of add - updates if exists, inserts if not
+                db.add(instance)
                 stats["azure"]["instances"] += 1
             
             await db.commit()
+            logger.info(f"✓ Inserted {stats['azure']['instances']} Azure instances")
+        
+        # Clear existing Azure pricing to avoid duplicates
+        async with get_db_context() as db:
+            from sqlalchemy import delete
+            await db.execute(delete(CloudPricing).where(CloudPricing.provider == "azure"))
+            await db.commit()
+            logger.info("Cleared existing Azure pricing")
         
         # Fetch pricing for multiple regions (expanded for MORE coverage)
         azure_regions = [
@@ -182,7 +214,7 @@ async def main():
                         currency=price.get("currency", "USD"),
                         effective_date=price.get("effective_date", datetime.utcnow()),
                     )
-                    await db.merge(pricing)  # merge instead of add - updates if exists, inserts if not
+                    db.add(pricing)
                     stats["azure"]["pricing"] += 1
                 
                 await db.commit()
@@ -239,6 +271,13 @@ async def main():
     # Fetch pricing for multiple regions - ALWAYS TRY even if instances failed
     aws_regions = ["us-east-1", "us-west-2", "eu-west-1", "ap-south-1", "eu-central-1"]
     
+    # Clear existing AWS pricing to avoid duplicates
+    async with get_db_context() as db:
+        from sqlalchemy import delete
+        await db.execute(delete(CloudPricing).where(CloudPricing.provider == "aws"))
+        await db.commit()
+        logger.info("Cleared existing AWS pricing")
+    
     for region in aws_regions:
         try:
             # Fetch on-demand pricing
@@ -258,7 +297,7 @@ async def main():
                             currency="USD",
                             effective_date=price.get("effective_date", datetime.utcnow()),
                         )
-                        await db.merge(pricing)  # merge instead of add - updates if exists, inserts if not
+                        db.add(pricing)
                         stats["aws"]["pricing"] += 1
                     except Exception as price_err:
                         # Skip this price and continue
