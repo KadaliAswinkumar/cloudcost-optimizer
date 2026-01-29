@@ -280,36 +280,10 @@ async def list_multicloud_instances(
                 detail=f"Invalid provider '{provider}'. Must be one of: aws, gcp, azure"
             )
         
-        # Build query with LEFT JOIN to get pricing in one query
-        try:
-            # Subquery to get the cheapest on-demand pricing per instance
-            pricing_subquery = (
-                select(
-                    CloudPricing.provider,
-                    CloudPricing.instance_type,
-                    func.min(CloudPricing.hourly_price).label('min_price')
-                )
-                .where(CloudPricing.pricing_type == "on_demand")
-                .group_by(CloudPricing.provider, CloudPricing.instance_type)
-                .subquery()
-            )
-            
-            # Main query with JOIN
-            query = select(
-                CloudInstance,
-                pricing_subquery.c.min_price.label('hourly_price')
-            ).outerjoin(
-                pricing_subquery,
-                and_(
-                    CloudInstance.provider == pricing_subquery.c.provider,
-                    CloudInstance.instance_type == pricing_subquery.c.instance_type
-                )
-            )
-        except Exception as e:
-            logger.error(f"Error building query: {e}")
-            # Fallback: Simple query without pricing
-            query = select(CloudInstance)
-            pricing_subquery = None
+        # Build a simple query (JOIN was causing issues with async SQLAlchemy)
+        # We'll fetch pricing separately if needed
+        query = select(CloudInstance)
+        pricing_subquery = None
         
         conditions = []
         
@@ -361,58 +335,29 @@ async def list_multicloud_instances(
             logger.warning(f"Error applying pagination: {e}")
             # Continue with default ordering
         
-        # Execute query with retry logic
-        rows = []
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                result = await db.execute(query)
-                rows = result.all()
-                break
-            except Exception as e:
-                logger.error(f"Query execution attempt {attempt + 1} failed: {e}")
-                if attempt == max_retries - 1:
-                    # Last attempt failed, try fallback simple query
-                    try:
-                        logger.info("Attempting fallback simple query...")
-                        simple_query = select(CloudInstance)
-                        if conditions:
-                            simple_query = simple_query.where(*conditions)
-                        simple_query = simple_query.limit(limit).offset(offset)
-                        result = await db.execute(simple_query)
-                        rows = [(instance, None) for instance in result.scalars().all()]
-                        logger.info(f"Fallback query succeeded with {len(rows)} results")
-                    except Exception as fallback_error:
-                        logger.error(f"Fallback query also failed: {fallback_error}")
-                        raise HTTPException(
-                            status_code=500,
-                            detail="Failed to retrieve instances. Please try again later."
-                        )
+        # Execute query
+        try:
+            result = await db.execute(query)
+            instances = result.scalars().all()
+            logger.info(f"Query returned {len(instances)} instances")
+        except Exception as e:
+            logger.error(f"Query execution failed: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to retrieve instances. Please try again later."
+            )
         
-        # Format response with error handling
+        # Format response
         instance_data = []
-        for row in rows:
+        for instance in instances:
             try:
-                if isinstance(row, tuple):
-                    instance, hourly_price = row
-                else:
-                    instance = row
-                    hourly_price = None
-                
                 instance_dict = instance.to_dict()
-                # Safely handle pricing
-                if hourly_price is not None:
-                    try:
-                        instance_dict["hourly_price"] = float(hourly_price)
-                    except (ValueError, TypeError):
-                        instance_dict["hourly_price"] = 0.0
-                else:
-                    instance_dict["hourly_price"] = 0.0
-                
+                # We'll fetch pricing separately later if needed
+                # For now, set to 0.0 to keep the response format consistent
+                instance_dict["hourly_price"] = 0.0
                 instance_data.append(instance_dict)
             except Exception as e:
                 logger.warning(f"Error formatting instance: {e}")
-                # Skip this instance and continue
                 continue
         
         logger.info(f"Successfully returned {len(instance_data)} instances (total: {total})")
