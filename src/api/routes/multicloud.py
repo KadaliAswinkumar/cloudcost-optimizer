@@ -16,6 +16,42 @@ from src.services.multicloud_recommender import MultiCloudRecommender, MultiClou
 router = APIRouter(prefix="/multicloud", tags=["Multi-Cloud"])
 
 
+@router.get("/debug/simple")
+async def debug_simple_query(
+    limit: int = Query(5, description="Number of results"),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """
+    DEBUG: Simple query without any joins to test database connectivity.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Simplest possible query
+        query = select(CloudInstance).limit(limit)
+        result = await db.execute(query)
+        instances = result.scalars().all()
+        
+        logger.info(f"Debug query returned {len(instances)} instances")
+        
+        return {
+            "count": len(instances),
+            "instances": [
+                {
+                    "provider": inst.provider,
+                    "instance_type": inst.instance_type,
+                    "vcpus": inst.vcpus,
+                    "memory_gb": inst.memory_gb,
+                }
+                for inst in instances
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Debug query failed: {e}", exc_info=True)
+        return {"error": str(e), "count": 0, "instances": []}
+
+
 @router.get("/stats")
 async def get_cloud_stats(
     provider: Optional[str] = Query(None, description="Filter by provider (aws, gcp, azure)"),
