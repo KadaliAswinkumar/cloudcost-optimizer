@@ -67,7 +67,7 @@ async def main():
                     gpu_count=mt.get("gpu_count"),
                     gpu_type=mt.get("gpu_type"),
                 )
-                db.merge(instance)  # merge instead of add - updates if exists, inserts if not
+                await db.merge(instance)  # merge instead of add - updates if exists, inserts if not
                 stats["gcp"]["instances"] += 1
             
             await db.commit()
@@ -96,7 +96,7 @@ async def main():
                         currency=price.get("currency", "USD"),
                         effective_date=price.get("effective_date", datetime.utcnow()),
                     )
-                    db.merge(pricing)  # merge instead of add - updates if exists, inserts if not
+                    await db.merge(pricing)  # merge instead of add - updates if exists, inserts if not
                     stats["gcp"]["pricing"] += 1
                 
                 await db.commit()
@@ -138,7 +138,7 @@ async def main():
                     gpu_count=vm.get("gpu_count"),
                     gpu_type=vm.get("gpu_type"),
                 )
-                db.merge(instance)  # merge instead of add - updates if exists, inserts if not
+                await db.merge(instance)  # merge instead of add - updates if exists, inserts if not
                 stats["azure"]["instances"] += 1
             
             await db.commit()
@@ -167,7 +167,7 @@ async def main():
                         currency=price.get("currency", "USD"),
                         effective_date=price.get("effective_date", datetime.utcnow()),
                     )
-                    db.merge(pricing)  # merge instead of add - updates if exists, inserts if not
+                    await db.merge(pricing)  # merge instead of add - updates if exists, inserts if not
                     stats["azure"]["pricing"] += 1
                 
                 await db.commit()
@@ -205,7 +205,7 @@ async def main():
                     is_current_generation=it.get("current_generation", True),
                     supports_spot=True,
                 )
-                db.merge(instance)  # merge instead of add - updates if exists, inserts if not
+                await db.merge(instance)  # merge instead of add - updates if exists, inserts if not
                 stats["aws"]["instances"] += 1
             
             await db.commit()
@@ -230,7 +230,7 @@ async def main():
                         currency="USD",
                         effective_date=price.get("effective_date", datetime.utcnow()),
                     )
-                    db.merge(pricing)  # merge instead of add - updates if exists, inserts if not
+                    await db.merge(pricing)  # merge instead of add - updates if exists, inserts if not
                     stats["aws"]["pricing"] += 1
                 
                 await db.commit()
