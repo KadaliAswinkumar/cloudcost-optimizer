@@ -128,7 +128,7 @@ Remember: You're helping users SAVE MONEY while maintaining performance. Be thei
             else:
                 # Regular response
                 response = await self.client.chat.completions.create(
-                    model="llama-3.1-70b-versatile",  # 70B model - very smart!
+                    model="llama-3.3-70b-versatile",  # Updated to latest model
                     messages=messages,
                     temperature=0.7,
                     max_tokens=1024,
@@ -140,7 +140,7 @@ Remember: You're helping users SAVE MONEY while maintaining performance. Be thei
                 return {
                     "success": True,
                     "message": ai_message,
-                    "model": "llama-3.1-70b-versatile",
+                    "model": "llama-3.3-70b-versatile",
                     "usage": {
                         "prompt_tokens": response.usage.prompt_tokens,
                         "completion_tokens": response.usage.completion_tokens,
@@ -160,7 +160,7 @@ Remember: You're helping users SAVE MONEY while maintaining performance. Be thei
         """Stream the AI response word by word"""
         try:
             stream = await self.client.chat.completions.create(
-                model="llama-3.1-70b-versatile",
+                model="llama-3.3-70b-versatile",
                 messages=messages,
                 temperature=0.7,
                 max_tokens=1024,

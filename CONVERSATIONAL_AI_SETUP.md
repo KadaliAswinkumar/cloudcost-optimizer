@@ -1,7 +1,7 @@
 # CloudCost AI™ - Conversational AI Setup Guide
 
 ## 🎯 Overview
-CloudCost AI™ now includes a **ChatGPT-like conversational interface** powered by Groq's free Llama 3.1 70B model.
+CloudCost AI™ now includes a **ChatGPT-like conversational interface** powered by Groq's free Llama 3.3 70B model.
 
 ---
 
@@ -66,7 +66,7 @@ The AI knows about:
 - **15,000 requests/day** (plenty for most use cases)
 - **500 tokens/second** (FASTEST in the world!)
 - **No credit card required**
-- **Llama 3.1 70B** model (very smart!)
+- **Llama 3.3 70B** model (very smart!)
 
 ---
 
