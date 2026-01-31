@@ -9,7 +9,9 @@ import {
   BarChart3,
   MapPin,
   Info,
-  Calculator
+  Calculator,
+  Clock,
+  TrendingUp
 } from 'lucide-react'
 import CloudBadge from '../components/CloudBadge'
 import { api } from '../api/client'
@@ -236,11 +238,148 @@ export default function SpotIntelligence() {
 
           {analysis && (
             <>
+              {/* Smart Recommendation (NEW!) */}
+              {analysis.recommendation && (
+                <div className="glass-card p-6 border-l-4 border-yellow-500">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-500/20 to-orange-500/20 flex items-center justify-center flex-shrink-0">
+                      <Zap className="w-6 h-6 text-yellow-400" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold text-white mb-2">
+                        💡 Our Recommendation
+                      </h3>
+                      <p className="text-slate-300 mb-4 leading-relaxed">
+                        {analysis.recommendation.reasoning}
+                      </p>
+                      <div className="flex items-center gap-4">
+                        <div className="px-4 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                          <span className="text-sm text-slate-400">Save </span>
+                          <span className="text-lg font-bold text-yellow-400">
+                            ${analysis.recommendation.estimated_monthly_savings?.toFixed(0)}/month
+                          </span>
+                        </div>
+                        <div className="px-4 py-2 rounded-lg bg-slate-800/50">
+                          <span className="text-sm text-slate-400">Annually: </span>
+                          <span className="text-lg font-bold text-white">
+                            ${analysis.recommendation.estimated_annual_savings?.toFixed(0)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Pricing Comparison: All Options (NEW!) */}
+              {analysis.recommendation?.all_options && (
+                <div className="glass-card p-6">
+                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-purple-400" />
+                    Complete Pricing Comparison
+                  </h3>
+                  <p className="text-sm text-slate-400 mb-6">
+                    Compare all pricing options to find the best fit for your workload
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {Object.entries(analysis.recommendation.all_options).map(([key, option]) => {
+                      const isRecommended = key === analysis.recommendation.recommended_option
+                      const isSpot = key === 'spot'
+                      const isOnDemand = key === 'on_demand'
+                      
+                      return (
+                        <div
+                          key={key}
+                          className={`
+                            relative p-5 rounded-lg border transition-all
+                            ${isRecommended 
+                              ? 'border-yellow-500 bg-gradient-to-br from-yellow-500/10 to-orange-500/10 ring-2 ring-yellow-500/20' 
+                              : 'border-slate-700 bg-slate-800/30 hover:border-slate-600'
+                            }
+                          `}
+                        >
+                          {isRecommended && (
+                            <div className="absolute -top-3 left-4 px-3 py-1 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 text-xs font-bold text-slate-900">
+                              ⭐ RECOMMENDED
+                            </div>
+                          )}
+
+                          <div className="mb-3">
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="text-base font-semibold text-white capitalize">
+                                {key.replace('_', ' ')}
+                              </h4>
+                              {isSpot && option.risk && (
+                                <span className={`text-xs px-2 py-1 rounded ${getRiskBadge(option.risk)}`}>
+                                  {option.risk} risk
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-slate-400">
+                              {option.commitment}
+                            </div>
+                          </div>
+
+                          <div className="mb-4">
+                            <div className="text-3xl font-bold text-white mb-1">
+                              ${option.monthly_cost?.toFixed(0)}
+                            </div>
+                            <div className="text-xs text-slate-500">per month</div>
+                            {!isOnDemand && (
+                              <div className="mt-2 text-sm">
+                                <span className="text-green-400 font-semibold">
+                                  {option.savings_percent?.toFixed(0)}% off
+                                </span>
+                                <span className="text-slate-500"> · Save </span>
+                                <span className="text-white font-medium">
+                                  ${option.savings_amount?.toFixed(0)}/mo
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="space-y-3 mb-4">
+                            <div>
+                              <div className="text-xs font-semibold text-green-400 mb-1.5">Pros:</div>
+                              <ul className="space-y-1">
+                                {option.pros?.map((pro, idx) => (
+                                  <li key={idx} className="text-xs text-slate-300 flex items-start gap-1.5">
+                                    <CheckCircle2 className="w-3 h-3 text-green-500 flex-shrink-0 mt-0.5" />
+                                    <span>{pro}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            <div>
+                              <div className="text-xs font-semibold text-red-400 mb-1.5">Cons:</div>
+                              <ul className="space-y-1">
+                                {option.cons?.map((con, idx) => (
+                                  <li key={idx} className="text-xs text-slate-400 flex items-start gap-1.5">
+                                    <AlertTriangle className="w-3 h-3 text-red-500/70 flex-shrink-0 mt-0.5" />
+                                    <span>{con}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+
+                          <div className="pt-3 border-t border-slate-700">
+                            <div className="text-xs text-slate-400 mb-1">Best for:</div>
+                            <div className="text-xs text-slate-300">{option.best_for}</div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Savings Summary */}
               <div className="glass-card p-6">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-green-400" />
-                  Savings Potential
+                  <TrendingDown className="w-5 h-5 text-green-400" />
+                  Spot Savings Potential
                 </h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
