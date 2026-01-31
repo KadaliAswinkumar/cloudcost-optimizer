@@ -11,8 +11,11 @@ import {
   Info,
   Calculator,
   Clock,
-  TrendingUp
+  TrendingUp,
+  Calendar,
+  Target
 } from 'lucide-react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts'
 import CloudBadge from '../components/CloudBadge'
 import { api } from '../api/client'
 
@@ -372,6 +375,220 @@ export default function SpotIntelligence() {
                       )
                     })}
                   </div>
+                </div>
+              )}
+
+              {/* Historical Price Chart (NEW!) */}
+              {analysis.historical_data?.prices && (
+                <div className="glass-card p-6">
+                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-blue-400" />
+                    7-Day Price History
+                  </h3>
+                  <p className="text-sm text-slate-400 mb-6">
+                    Real-time spot price trends over the last week
+                  </p>
+
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={analysis.historical_data.prices.map(p => ({
+                      time: new Date(p.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                      price: p.price
+                    }))}>
+                      <defs>
+                        <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                      <XAxis 
+                        dataKey="time" 
+                        stroke="#94a3b8" 
+                        style={{ fontSize: '12px' }}
+                      />
+                      <YAxis 
+                        stroke="#94a3b8" 
+                        style={{ fontSize: '12px' }}
+                        tickFormatter={(value) => `$${value.toFixed(3)}`}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: '#1e293b', 
+                          border: '1px solid #334155',
+                          borderRadius: '8px',
+                          padding: '12px'
+                        }}
+                        labelStyle={{ color: '#f1f5f9', fontWeight: 'bold', marginBottom: '4px' }}
+                        itemStyle={{ color: '#3b82f6' }}
+                        formatter={(value) => [`$${value.toFixed(4)}/hr`, 'Spot Price']}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="price" 
+                        stroke="#3b82f6" 
+                        strokeWidth={2}
+                        fill="url(#priceGradient)" 
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+
+                  {analysis.historical_data.insights && (
+                    <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="p-4 rounded-lg bg-slate-800/30">
+                        <div className="text-xs text-slate-400 mb-1">Lowest Price</div>
+                        <div className="text-xl font-bold text-green-400">
+                          ${analysis.historical_data.insights.overall?.min}/hr
+                        </div>
+                      </div>
+                      <div className="p-4 rounded-lg bg-slate-800/30">
+                        <div className="text-xs text-slate-400 mb-1">Average Price</div>
+                        <div className="text-xl font-bold text-white">
+                          ${analysis.historical_data.insights.overall?.avg}/hr
+                        </div>
+                      </div>
+                      <div className="p-4 rounded-lg bg-slate-800/30">
+                        <div className="text-xs text-slate-400 mb-1">Highest Price</div>
+                        <div className="text-xl font-bold text-red-400">
+                          ${analysis.historical_data.insights.overall?.max}/hr
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Launch Recommendations (NEW!) */}
+              {analysis.launch_recommendations && analysis.launch_recommendations.length > 0 && (
+                <div className="glass-card p-6">
+                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-purple-400" />
+                    Best Times to Launch
+                  </h3>
+                  <p className="text-sm text-slate-400 mb-6">
+                    Optimal launch times to maximize savings and minimize interruptions
+                  </p>
+
+                  <div className="space-y-4">
+                    {analysis.launch_recommendations.map((rec, idx) => {
+                      const bgColors = {
+                        best_hour: 'bg-green-500/10 border-green-500/20',
+                        weekend: 'bg-blue-500/10 border-blue-500/20',
+                        avoid_peak: 'bg-red-500/10 border-red-500/20'
+                      }
+                      const iconColors = {
+                        best_hour: 'text-green-400',
+                        weekend: 'text-blue-400',
+                        avoid_peak: 'text-red-400'
+                      }
+                      
+                      return (
+                        <div 
+                          key={idx} 
+                          className={`p-4 rounded-lg border ${bgColors[rec.type] || 'bg-slate-800/30 border-slate-700'}`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <Target className={`w-5 h-5 flex-shrink-0 mt-0.5 ${iconColors[rec.type] || 'text-slate-400'}`} />
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-white mb-1">{rec.title}</h4>
+                              <p className="text-sm text-slate-300 mb-2">{rec.description}</p>
+                              {rec.tip && (
+                                <p className="text-xs text-slate-400 italic">💡 {rec.tip}</p>
+                              )}
+                              {rec.savings && (
+                                <div className="mt-2 text-sm">
+                                  <span className="text-green-400 font-medium">{rec.savings}</span>
+                                  {rec.price && <span className="text-slate-500"> · {rec.price}</span>}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Interruption Frequency (NEW!) */}
+              {analysis.interruption_analysis && (
+                <div className="glass-card p-6">
+                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-orange-400" />
+                    Interruption Frequency Analysis
+                  </h3>
+                  <p className="text-sm text-slate-400 mb-6">
+                    What to expect when running spot instances
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className="p-4 rounded-lg bg-gradient-to-br from-orange-500/10 to-red-500/10 border border-orange-500/20">
+                      <div className="text-xs text-slate-400 mb-1">Estimated Interruptions</div>
+                      <div className="text-3xl font-bold text-orange-400">
+                        {analysis.interruption_analysis.interruptions_per_month}
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1">per month</div>
+                    </div>
+
+                    <div className="p-4 rounded-lg bg-slate-800/30">
+                      <div className="text-xs text-slate-400 mb-1">Expected Uptime</div>
+                      <div className="text-2xl font-bold text-white">
+                        {analysis.interruption_analysis.uptime_percent}%
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1">
+                        ~{analysis.interruption_analysis.avg_uptime_hours}hrs/month
+                      </div>
+                    </div>
+
+                    <div className="p-4 rounded-lg bg-slate-800/30">
+                      <div className="text-xs text-slate-400 mb-1">Interruption Rate</div>
+                      <div className="text-2xl font-bold text-white">
+                        {analysis.interruption_analysis.interruption_rate_percent}%
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1">of running time</div>
+                    </div>
+                  </div>
+
+                  {analysis.interruption_analysis.day_patterns && (
+                    <div className="mb-6">
+                      <h4 className="text-sm font-medium text-white mb-3">Weekly Risk Pattern</h4>
+                      <div className="grid grid-cols-7 gap-2">
+                        {Object.entries(analysis.interruption_analysis.day_patterns).map(([day, risk]) => {
+                          const riskColors = {
+                            low: 'bg-green-500/20 text-green-400 border-green-500/30',
+                            medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+                            high: 'bg-red-500/20 text-red-400 border-red-500/30'
+                          }
+                          
+                          return (
+                            <div 
+                              key={day} 
+                              className={`p-2 rounded-lg border text-center ${riskColors[risk]}`}
+                            >
+                              <div className="text-xs font-bold mb-1">{day.slice(0, 3)}</div>
+                              <div className="text-xs capitalize">{risk}</div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2 text-center">
+                        🟢 Weekends are safer | 🔴 Weekdays have higher risk
+                      </p>
+                    </div>
+                  )}
+
+                  {analysis.interruption_analysis.best_practices && (
+                    <div className="p-4 rounded-lg bg-slate-800/30">
+                      <h4 className="text-sm font-medium text-white mb-3">Best Practices</h4>
+                      <ul className="space-y-2">
+                        {analysis.interruption_analysis.best_practices.map((practice, idx) => (
+                          <li key={idx} className="text-xs text-slate-300 flex items-start gap-2">
+                            <span className="text-green-400 flex-shrink-0">▸</span>
+                            <span>{practice}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
 
