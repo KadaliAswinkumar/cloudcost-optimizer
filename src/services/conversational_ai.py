@@ -13,8 +13,7 @@ from groq import AsyncGroq
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.cloud_provider import CloudInstance
-from src.models.pricing import CloudPricing
+from src.models.cloud_provider import CloudInstance, CloudPricing
 
 logger = logging.getLogger(__name__)
 
