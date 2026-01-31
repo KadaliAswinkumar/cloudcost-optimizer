@@ -60,6 +60,16 @@ export const api = {
     apiClient.post('/api/v1/ai/chat', data),
   getChatSuggestions: (workloadType = 'general') => 
     apiClient.get('/api/v1/ai/suggestions', { params: { workload_type: workloadType } }),
+  
+  // Spot Intelligence™
+  analyzeSpotInstance: (data) => 
+    apiClient.post('/api/v1/spot-intelligence/analyze', data),
+  compareSpotProviders: (data) => 
+    apiClient.post('/api/v1/spot-intelligence/compare', data),
+  quickSpotCheck: (provider, instanceType) => 
+    apiClient.get('/api/v1/spot-intelligence/quick-check', { 
+      params: { provider, instance_type: instanceType } 
+    }),
 }
 
 export default apiClient

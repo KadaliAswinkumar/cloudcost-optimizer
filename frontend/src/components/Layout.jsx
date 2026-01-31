@@ -7,13 +7,15 @@ import {
   GitCompare, 
   Calculator,
   Menu,
-  X
+  X,
+  Zap
 } from 'lucide-react'
 import { useState } from 'react'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'CloudCost AI™', href: '/ai', icon: Sparkles, highlight: true },
+  { name: 'Spot Intelligence™', href: '/spot-intelligence', icon: Zap, highlight: true },
   { name: 'Get Recommendations', href: '/recommendations', icon: Sparkles },
   { name: 'Find Instances', href: '/instances', icon: Search },
   { name: 'Compare Clouds', href: '/compare', icon: GitCompare },
