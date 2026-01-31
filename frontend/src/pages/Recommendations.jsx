@@ -10,16 +10,21 @@ import {
   CheckCircle2,
   AlertTriangle,
   Shield,
-  Info
+  Info,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 import RecommendationCard from '../components/RecommendationCard'
 import CloudBadge from '../components/CloudBadge'
 import { api } from '../api/client'
 
+const ITEMS_PER_PAGE = 10
+
 export default function Recommendations() {
   const [loading, setLoading] = useState(false)
   const [recommendations, setRecommendations] = useState(null)
   const [error, setError] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
   
   const [formData, setFormData] = useState({
     min_vcpus: 4,
@@ -66,6 +71,7 @@ export default function Recommendations() {
       console.log('Received recommendations:', response.data)
       
       setRecommendations(response.data)
+      setCurrentPage(1) // Reset to page 1 when new recommendations are loaded
     } catch (err) {
       console.error('Error fetching recommendations:', err)
       const errorMessage = err.response?.data?.detail || 'Failed to get recommendations. Please try again.'
@@ -339,15 +345,106 @@ export default function Recommendations() {
 
               {/* Recommendations List */}
               <div className="space-y-4">
-                <h2 className="text-lg font-semibold text-white">Top Recommendations</h2>
-                {recommendations.overall_best.map((rec, index) => (
-                  <RecommendationCard
-                    key={`${rec.provider}-${rec.instance_type}`}
-                    recommendation={rec}
-                    rank={index + 1}
-                  />
-                ))}
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-white">Top Recommendations</h2>
+                  {recommendations.overall_best.length > ITEMS_PER_PAGE && (
+                    <p className="text-sm text-slate-400">
+                      Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, recommendations.overall_best.length)} of {recommendations.overall_best.length}
+                    </p>
+                  )}
+                </div>
+                {recommendations.overall_best
+                  .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+                  .map((rec, index) => (
+                    <RecommendationCard
+                      key={`${rec.provider}-${rec.instance_type}`}
+                      recommendation={rec}
+                      rank={((currentPage - 1) * ITEMS_PER_PAGE) + index + 1}
+                    />
+                  ))}
               </div>
+
+              {/* Pagination */}
+              {recommendations.overall_best.length > ITEMS_PER_PAGE && (() => {
+                const totalPages = Math.ceil(recommendations.overall_best.length / ITEMS_PER_PAGE)
+                const getPageNumbers = () => {
+                  const pages = []
+                  const showPages = 7
+                  
+                  if (totalPages <= showPages) {
+                    for (let i = 1; i <= totalPages; i++) {
+                      pages.push(i)
+                    }
+                  } else {
+                    pages.push(1)
+                    if (currentPage > 3) pages.push('...')
+                    const start = Math.max(2, currentPage - 1)
+                    const end = Math.min(totalPages - 1, currentPage + 1)
+                    for (let i = start; i <= end; i++) {
+                      pages.push(i)
+                    }
+                    if (currentPage < totalPages - 2) pages.push('...')
+                    if (totalPages > 1) pages.push(totalPages)
+                  }
+                  
+                  return pages
+                }
+
+                return (
+                  <div className="flex items-center justify-center gap-2 mt-6">
+                    {/* Previous Button */}
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className={`
+                        px-4 py-2 rounded-lg border transition-all
+                        ${currentPage === 1
+                          ? 'border-slate-700 text-slate-600 cursor-not-allowed'
+                          : 'border-slate-600 text-slate-300 hover:bg-slate-800 hover:border-slate-500'
+                        }
+                      `}
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+
+                    {/* Page Numbers */}
+                    {getPageNumbers().map((page, idx) => (
+                      page === '...' ? (
+                        <span key={`ellipsis-${idx}`} className="px-3 text-slate-500">...</span>
+                      ) : (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          className={`
+                            px-4 py-2 rounded-lg border transition-all min-w-[44px]
+                            ${currentPage === page
+                              ? 'bg-purple-500 border-purple-500 text-white font-semibold'
+                              : 'border-slate-600 text-slate-300 hover:bg-slate-800 hover:border-slate-500'
+                            }
+                          `}
+                        >
+                          {page}
+                        </button>
+                      )
+                    ))}
+
+                    {/* Next Button */}
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className={`
+                        px-4 py-2 rounded-lg border transition-all
+                        ${currentPage === totalPages
+                          ? 'border-slate-700 text-slate-600 cursor-not-allowed'
+                          : 'border-slate-600 text-slate-300 hover:bg-slate-800 hover:border-slate-500'
+                        }
+                      `}
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </div>
+                )
+              })()}
             </>
           ) : (
             <div className="glass-card p-12 text-center">
