@@ -13,6 +13,7 @@ import { useState } from 'react'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'CloudCost AI™', href: '/ai', icon: Sparkles, highlight: true },
   { name: 'Get Recommendations', href: '/recommendations', icon: Sparkles },
   { name: 'Find Instances', href: '/instances', icon: Search },
   { name: 'Compare Clouds', href: '/compare', icon: GitCompare },
@@ -55,15 +56,22 @@ export default function Layout({ children }) {
                     <Link
                       to={item.href}
                       className={`
-                        group flex gap-x-3 rounded-xl p-3 text-sm font-medium transition-all duration-200
+                        group flex gap-x-3 rounded-xl p-3 text-sm font-medium transition-all duration-200 relative
                         ${isActive 
                           ? 'bg-primary-500/10 text-primary-400 border border-primary-500/20' 
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                          : item.highlight
+                            ? 'bg-gradient-to-r from-purple-500/10 to-blue-500/10 text-white border border-purple-500/20 hover:from-purple-500/20 hover:to-blue-500/20'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
                         }
                       `}
                     >
-                      <item.icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-primary-400' : 'text-slate-500 group-hover:text-white'}`} />
+                      <item.icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-primary-400' : item.highlight ? 'text-purple-400' : 'text-slate-500 group-hover:text-white'}`} />
                       {item.name}
+                      {item.highlight && !isActive && (
+                        <span className="ml-auto px-1.5 py-0.5 text-[10px] font-bold rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                          NEW
+                        </span>
+                      )}
                     </Link>
                   </li>
                 )

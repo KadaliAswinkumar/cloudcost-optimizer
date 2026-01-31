@@ -24,6 +24,7 @@ from src.api.routes import (
     recommendations_router,
 )
 from src.api.routes.multicloud import router as multicloud_router
+from src.api.routes.ai import router as ai_router
 
 # Configure logging
 logging.basicConfig(
@@ -135,6 +136,7 @@ app.include_router(instances_router, prefix="/api/v1")
 app.include_router(pricing_router, prefix="/api/v1")
 app.include_router(recommendations_router, prefix="/api/v1")
 app.include_router(multicloud_router, prefix="/api/v1")
+app.include_router(ai_router, prefix="/api/v1")  # CloudCost AI™
 
 
 # Root endpoint

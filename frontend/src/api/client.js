@@ -48,6 +48,12 @@ export const api = {
       params: { vcpus, memory_gb: memoryGb } 
     }),
   getProviders: () => apiClient.get('/api/v1/multicloud/providers'),
+  
+  // CloudCost AI™
+  getAIRecommendations: (data) => 
+    apiClient.post('/api/v1/ai/recommend', data),
+  getWorkloadTypes: () => 
+    apiClient.get('/api/v1/ai/workload-types'),
 }
 
 export default apiClient
