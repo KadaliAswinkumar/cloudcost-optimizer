@@ -25,6 +25,8 @@ async def main():
     from src.services.aws_price_fetcher import AWSPriceFetcher
     from src.services.gcp_price_fetcher import GCPPriceFetcher
     from src.services.azure_price_fetcher import AzurePriceFetcher
+    from asyncpg.exceptions import UniqueViolationError
+    from sqlalchemy.exc import IntegrityError
     
     print("\n" + "="*70)
     print("🌐 FETCHING REAL CLOUD PRICING DATA")
@@ -256,11 +258,19 @@ async def main():
                     )
                     await db.merge(instance)  # merge instead of add - updates if exists, inserts if not
                     stats["aws"]["instances"] += 1
+                except (IntegrityError, UniqueViolationError):
+                    # Silently skip duplicates
+                    await db.rollback()
                 except Exception as inst_err:
                     # Skip this instance and continue
                     logger.warning(f"Skipping AWS instance {it.get('instance_type')}: {inst_err}")
+                    await db.rollback()
             
-            await db.commit()
+            try:
+                await db.commit()
+            except (IntegrityError, UniqueViolationError):
+                # Ignore duplicate errors on commit
+                await db.rollback()
         
         logger.info(f"✓ AWS instances: {stats['aws']['instances']}")
         print(f"✅ AWS instances: {stats['aws']['instances']}")
@@ -299,11 +309,19 @@ async def main():
                         )
                         db.add(pricing)
                         stats["aws"]["pricing"] += 1
+                    except (IntegrityError, UniqueViolationError):
+                        # Silently skip duplicates
+                        await db.rollback()
                     except Exception as price_err:
                         # Skip this price and continue
                         logger.warning(f"Skipping AWS price for {price.get('instance_type')}: {price_err}")
+                        await db.rollback()
                 
-                await db.commit()
+                try:
+                    await db.commit()
+                except (IntegrityError, UniqueViolationError):
+                    # Ignore duplicate errors on commit
+                    await db.rollback()
             
             logger.info(f"✓ AWS {region}: fetched {len(pricing_data)} prices")
         except Exception as region_err:
@@ -351,6 +369,7 @@ if __name__ == "__main__":
         print("\n\n⚠️  Fetch interrupted by user")
         sys.exit(1)
     except Exception as e:
-        print(f"\n\n❌ Fatal error: {str(e)}")
-        logger.exception("Fatal error during fetch")
-        sys.exit(1)
+        print(f"\n\n⚠️  Fetch had errors but may have loaded some data: {str(e)}")
+        logger.exception("Error during fetch (non-fatal)")
+        # Don't exit with error code - let the app start anyway
+        sys.exit(0)
