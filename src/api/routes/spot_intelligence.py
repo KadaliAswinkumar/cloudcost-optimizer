@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.database import get_db
 from src.services.spot_intelligence import SpotIntelligence
 
-router = APIRouter(prefix="/spot-intelligence", tags=["Spot Intelligence™"])
+router = APIRouter(tags=["Spot Intelligence™"])
 
 
 class SpotAnalysisRequest(BaseModel):

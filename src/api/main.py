@@ -138,7 +138,7 @@ app.include_router(pricing_router, prefix="/api/v1")
 app.include_router(recommendations_router, prefix="/api/v1")
 app.include_router(multicloud_router, prefix="/api/v1")
 app.include_router(ai_router, prefix="/api/v1")  # CloudCost AI™
-app.include_router(spot_intelligence_router, prefix="/api/v1")  # Spot Intelligence™
+app.include_router(spot_intelligence_router, prefix="/api/v1/spot-intelligence")  # Spot Intelligence™
 
 
 # Root endpoint
