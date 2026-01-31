@@ -81,6 +81,17 @@ class SpotIntelligence:
             # Get instance details
             instance_details = await self._get_instance_details(provider, instance_type)
             
+            # Get reserved pricing for comparison
+            reserved_prices = await self._get_reserved_prices(provider, instance_type, region)
+            
+            # Generate recommendation (spot vs reserved)
+            recommendation = self._generate_recommendation(
+                on_demand_price,
+                spot_prices,
+                reserved_prices,
+                analysis
+            )
+            
             return {
                 "success": True,
                 "provider": provider,
@@ -88,6 +99,8 @@ class SpotIntelligence:
                 "instance_details": instance_details,
                 "on_demand": on_demand_price,
                 "spot_analysis": analysis,
+                "reserved_pricing": reserved_prices,
+                "recommendation": recommendation,
                 "timestamp": datetime.utcnow().isoformat()
             }
             
@@ -383,3 +396,153 @@ class SpotIntelligence:
                 "success": False,
                 "error": str(e)
             }
+    
+    async def _get_reserved_prices(
+        self,
+        provider: str,
+        instance_type: str,
+        region: Optional[str]
+    ) -> Dict:
+        """Get reserved instance pricing for comparison"""
+        try:
+            # Determine pricing types based on provider
+            if provider == "aws":
+                pricing_types = ["reserved_1yr", "reserved_3yr"]
+            elif provider == "gcp":
+                pricing_types = ["committed_1yr", "committed_3yr"]
+            elif provider == "azure":
+                pricing_types = ["reserved_1yr", "reserved_3yr"]
+            else:
+                return {}
+            
+            reserved_pricing = {}
+            
+            for pricing_type in pricing_types:
+                query = select(CloudPricing).where(
+                    and_(
+                        CloudPricing.provider == provider,
+                        CloudPricing.instance_type == instance_type,
+                        CloudPricing.pricing_type == pricing_type
+                    )
+                )
+                
+                if region:
+                    query = query.where(CloudPricing.region == region)
+                
+                query = query.order_by(CloudPricing.hourly_price).limit(1)
+                
+                result = await self.db.execute(query)
+                pricing = result.scalar_one_or_none()
+                
+                if pricing:
+                    reserved_pricing[pricing_type] = {
+                        "hourly": float(pricing.hourly_price),
+                        "monthly": float(pricing.hourly_price) * 730,
+                        "annual": float(pricing.hourly_price) * 730 * 12,
+                        "region": pricing.region,
+                        "commitment_term": pricing.commitment_term
+                    }
+            
+            return reserved_pricing
+            
+        except Exception as e:
+            logger.error(f"Error getting reserved prices: {e}")
+            return {}
+    
+    def _generate_recommendation(
+        self,
+        on_demand: Dict,
+        spot_prices: List[Dict],
+        reserved_prices: Dict,
+        spot_analysis: Dict
+    ) -> Dict:
+        """Generate smart recommendation: spot vs reserved vs on-demand"""
+        try:
+            on_demand_monthly = on_demand["monthly"]
+            avg_spot_monthly = spot_analysis.get("average", {}).get("monthly", 0)
+            risk_level = spot_analysis.get("risk", {}).get("level", "unknown")
+            
+            # Calculate savings for each option
+            options = {
+                "on_demand": {
+                    "monthly_cost": on_demand_monthly,
+                    "savings_amount": 0,
+                    "savings_percent": 0,
+                    "commitment": "None",
+                    "pros": ["No commitment", "Guaranteed availability", "Flexible"],
+                    "cons": ["Most expensive", "No discounts"],
+                    "best_for": "Short-term testing, unpredictable workloads"
+                },
+                "spot": {
+                    "monthly_cost": avg_spot_monthly,
+                    "savings_amount": on_demand_monthly - avg_spot_monthly,
+                    "savings_percent": ((on_demand_monthly - avg_spot_monthly) / on_demand_monthly) * 100 if on_demand_monthly > 0 else 0,
+                    "commitment": "None",
+                    "risk": risk_level,
+                    "pros": ["Massive savings (60-90%)", "No commitment", "Flexible"],
+                    "cons": ["Can be interrupted", "Requires fault tolerance"],
+                    "best_for": "Batch jobs, dev/test, fault-tolerant workloads"
+                }
+            }
+            
+            # Add reserved options if available
+            for res_type, res_price in reserved_prices.items():
+                term = "1-year" if "1yr" in res_type else "3-year"
+                discount = ((on_demand_monthly - res_price["monthly"]) / on_demand_monthly) * 100 if on_demand_monthly > 0 else 0
+                
+                options[res_type] = {
+                    "monthly_cost": res_price["monthly"],
+                    "savings_amount": on_demand_monthly - res_price["monthly"],
+                    "savings_percent": discount,
+                    "commitment": term,
+                    "pros": [f"{int(discount)}% savings", "Guaranteed availability", "Predictable costs"],
+                    "cons": [f"{term} commitment", "Less flexible"],
+                    "best_for": "Production workloads, steady usage, long-term projects"
+                }
+            
+            # Determine best option based on risk tolerance and savings
+            best_option = "on_demand"
+            best_savings = 0
+            
+            # Spot is best if low risk and high savings
+            if risk_level == "low" and options["spot"]["savings_percent"] > 60:
+                best_option = "spot"
+                best_savings = options["spot"]["savings_amount"]
+            # Reserved 3yr is best if very high discount and commitment acceptable
+            elif "reserved_3yr" in options and options["reserved_3yr"]["savings_percent"] > 50:
+                best_option = "reserved_3yr"
+                best_savings = options["reserved_3yr"]["savings_amount"]
+            elif "committed_3yr" in options and options["committed_3yr"]["savings_percent"] > 50:
+                best_option = "committed_3yr"
+                best_savings = options["committed_3yr"]["savings_amount"]
+            # Reserved 1yr is good middle ground
+            elif "reserved_1yr" in options and options["reserved_1yr"]["savings_percent"] > 30:
+                best_option = "reserved_1yr"
+                best_savings = options["reserved_1yr"]["savings_amount"]
+            elif "committed_1yr" in options and options["committed_1yr"]["savings_percent"] > 30:
+                best_option = "committed_1yr"
+                best_savings = options["committed_1yr"]["savings_amount"]
+            
+            return {
+                "recommended_option": best_option,
+                "estimated_monthly_savings": round(best_savings, 2),
+                "estimated_annual_savings": round(best_savings * 12, 2),
+                "all_options": options,
+                "reasoning": self._get_recommendation_reasoning(best_option, risk_level, options)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error generating recommendation: {e}")
+            return {}
+    
+    def _get_recommendation_reasoning(self, best_option: str, risk_level: str, options: Dict) -> str:
+        """Generate human-readable reasoning for recommendation"""
+        if best_option == "spot":
+            savings_pct = options["spot"]["savings_percent"]
+            return f"🎯 Use Spot instances! With {risk_level} interruption risk and {savings_pct:.0f}% savings, spot is perfect for fault-tolerant workloads. Consider mixing 80% spot + 20% reserved for extra reliability."
+        elif "reserved" in best_option or "committed" in best_option:
+            term = "1-year" if "1yr" in best_option else "3-year"
+            savings_pct = options[best_option]["savings_percent"]
+            return f"🎯 Use {term} Reserved! Save {savings_pct:.0f}% with guaranteed availability. Perfect for steady production workloads. Tip: Combine with spot instances for even more savings on non-critical components."
+        else:
+            return "🎯 Use On-Demand for maximum flexibility. Consider reserved instances if usage is predictable, or spot instances for fault-tolerant workloads."
