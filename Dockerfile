@@ -32,8 +32,9 @@ USER appuser
 # Expose port
 EXPOSE 8000
 
-# Default command - Run migrations, load real data, then start server
+# Default command - Run migrations, load real data, add spot pricing, then start server
 CMD alembic upgrade head && \
     (python scripts/fetch_real_data.py || echo "⚠️  Data fetch failed, continuing with existing data...") && \
+    (python scripts/add_spot_pricing.py || echo "⚠️  Spot pricing generation failed, continuing...") && \
     uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8000}
 

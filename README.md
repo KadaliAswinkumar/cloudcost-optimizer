@@ -188,14 +188,18 @@ AWS_DEFAULT_REGION=us-east-1
 
 # 2. Run the data fetcher
 python scripts/fetch_real_data.py
+
+# 3. Add spot/preemptible pricing (NEW!)
+python scripts/add_spot_pricing.py
 ```
 
 This will fetch:
 - ✅ **1,100+ AWS EC2 instances** from AWS Pricing API
 - ✅ **500+ GCP Compute Engine instances** programmatically generated (no credentials needed)
 - ✅ **500+ Azure VM instances** programmatically generated (no credentials needed)
+- ✅ **Spot/Preemptible pricing** for all instances across all regions (60-90% cheaper!)
 
-**Fetch time**: 10-15 minutes for the first run.
+**Fetch time**: 10-15 minutes for the first run + 2-3 minutes for spot pricing.
 
 ### AWS Credentials Setup
 
