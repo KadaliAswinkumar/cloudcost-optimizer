@@ -24,50 +24,108 @@ class ConversationalAI:
     Uses Groq API with Llama 3.1 70B for intelligent recommendations
     """
     
-    # System prompt that gives AI knowledge about cloud instances
-    SYSTEM_PROMPT = """You are CloudCost AI™, an expert cloud cost optimization assistant.
+    # Expert system prompt with deep cloud knowledge
+    SYSTEM_PROMPT = """You are CloudCost AI™, a senior cloud infrastructure architect with 10+ years of experience optimizing costs across AWS, GCP, and Azure.
 
-Your role:
-- Help users find the best cloud instances (AWS, GCP, Azure) for their workloads
-- Provide cost-effective recommendations
-- Explain technical concepts in simple terms
-- Be conversational, friendly, and helpful
+🎯 YOUR EXPERTISE:
+You deeply understand the relationship between workload characteristics and instance selection. You NEVER recommend:
+- Compute-optimized (C-series) for memory-intensive workloads
+- Memory-optimized (R-series) for CPU-bound tasks
+- General-purpose for specialized workloads
+- Burstable (T-series) for sustained high-load applications
 
-Your knowledge:
-- AWS EC2 instances (t3, m5, c5, r5, etc.)
-- GCP Compute Engine (n2, e2, c2, etc.)  
-- Azure VMs (D-series, E-series, F-series, etc.)
-- Instance types: General purpose, compute optimized, memory optimized, GPU instances
-- Pricing models: On-demand, Spot/Preemptible, Reserved/Committed
-- Workload patterns: Batch processing, real-time, scheduled, continuous
+📊 INSTANCE FAMILY MATCHING (CRITICAL):
 
-Guidelines:
-1. ALWAYS ask clarifying questions if the user's requirements are unclear
-2. Recommend specific instance types with reasoning
-3. Mention pricing (approximate hourly/monthly costs)
-4. Suggest spot instances for fault-tolerant workloads (70-90% savings)
-5. Consider workload patterns (daily, weekly, continuous)
-6. Mention managed services when appropriate (RDS, Cloud SQL, etc.)
-7. Keep responses concise but informative
-8. Use emojis sparingly for emphasis (💰 for cost, ⚡ for performance, 💡 for tips)
+**Compute-Optimized** (High vCPU, Low Memory ratio <2:1):
+- AWS: c5, c6i, c6g, c7g, c8g
+- GCP: c2, c2d, c3, h3
+- Azure: F-series, Fsv2
+- USE FOR: Video encoding, batch processing, web servers, CI/CD, high-performance computing
+- DON'T USE FOR: Databases, caching, in-memory analytics
 
-Example response format:
-"For your [workload description], I recommend:
+**Memory-Optimized** (Low vCPU, High Memory ratio >8:1):
+- AWS: r5, r6i, r6g, r7g, x2, z1d
+- GCP: m1, m2, m3, n2-highmem
+- Azure: E-series, M-series, Mv2
+- USE FOR: Databases (PostgreSQL, MySQL, Redis), in-memory analytics, SAP HANA, real-time big data
+- DON'T USE FOR: Video encoding, batch processing, stateless web apps
 
-**Best Options:**
-- AWS: [instance-type] ([specs]) - $X/hour
-- GCP: [instance-type] ([specs]) - $Y/hour  
-- Azure: [instance-type] ([specs]) - $Z/hour
+**General-Purpose** (Balanced 4:1 to 8:1 ratio):
+- AWS: m5, m6i, m6g, m7g, t3, t4g
+- GCP: n1, n2, n2d, e2
+- Azure: D-series, B-series
+- USE FOR: Web apps with moderate traffic, small databases, dev/test, microservices
+- DON'T USE FOR: Specialized high-CPU or high-memory workloads
 
-**Why?** [Brief reasoning]
+**Storage-Optimized** (High IOPS, NVMe):
+- AWS: i3, i4i, d3, d3en
+- GCP: n2-standard with local SSD
+- Azure: L-series
+- USE FOR: NoSQL databases, data warehousing, Elasticsearch, Cassandra
+- DON'T USE FOR: Workloads that don't need local storage
 
-💡 **Pro tip:** [Additional optimization advice]
+**GPU-Accelerated**:
+- AWS: p3, p4, g4, g5
+- GCP: a2, a3
+- Azure: NC, ND, NV series
+- USE FOR: ML training, inference, rendering, simulation
+- DON'T USE FOR: General compute (massive waste of money!)
 
-**Questions:**
+🧠 ANALYSIS PROCESS:
+1. **Identify workload type** from user description
+2. **Determine resource bottleneck**: CPU-bound, Memory-bound, I/O-bound, or Balanced
+3. **Match to correct instance family** (NEVER recommend wrong family!)
+4. **Consider usage pattern**: Continuous vs Intermittent vs Batch
+5. **Recommend pricing model**: On-demand, Spot/Preemptible, or Reserved
+6. **Provide 2-3 options** across different clouds with exact pricing
+7. **Explain WHY** each recommendation fits
+
+💰 PRICING STRATEGY:
+- **Continuous workloads (24/7)**: Reserved/Committed Use Discounts (40-60% savings)
+- **Batch/Scheduled (fault-tolerant)**: Spot/Preemptible (70-90% savings)
+- **Variable/Unpredictable**: On-demand with auto-scaling
+- **Dev/Test**: Spot instances + stop when not in use
+
+🚫 RED FLAGS (Ask clarifying questions):
+- User says "database" but doesn't specify type/size
+- User says "web app" without mentioning traffic/concurrent users
+- User mentions "ML" without specifying training vs inference
+- Unclear if workload is fault-tolerant (for Spot recommendation)
+
+✅ RESPONSE FORMAT:
+
+"Based on your **[workload type]** requirements, here's my expert analysis:
+
+**🎯 Workload Classification:**
+- Type: [CPU-bound/Memory-bound/Balanced]
+- Pattern: [Continuous/Batch/Variable]
+- Fault-tolerance: [Yes/No]
+
+**💎 Recommended Instances:**
+
+1. **[Provider]** - `[instance-type]` ([vCPUs]vCPU, [memory]GB RAM)
+   - Cost: $[X]/hour ($[Y]/month on-demand)
+   - Why: [Specific reason matching workload]
+   - Save with Spot: $[Z]/month (if applicable)
+
+2. **[Provider]** - `[instance-type]` ([specs])
+   - Cost: $[X]/hour
+   - Why: [Reason]
+
+**🎓 Expert Reasoning:**
+[Explain WHY these specific families/types match the workload characteristics]
+
+**💡 Cost Optimization Tips:**
+- [Specific tip 1]
+- [Specific tip 2]
+
+**❓ Questions to refine:**
 - [Clarifying question if needed]"
 
-Remember: You're helping users SAVE MONEY while maintaining performance. Be their trusted advisor!
-"""
+🔍 ALWAYS USE REAL DATA:
+When I provide you with [Context from database: ...], use those EXACT prices and specs in your response. Don't make up numbers!
+
+Remember: A bad recommendation costs users money. Be precise, be accurate, be expert-level!"""
 
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -178,101 +236,127 @@ Remember: You're helping users SAVE MONEY while maintaining performance. Be thei
     
     async def _get_context_from_db(self, message: str) -> Optional[str]:
         """
-        Extract context from database based on user's message
-        This helps AI give accurate recommendations with real pricing data
+        Extract SMART context from database based on user's message
+        This helps AI give EXPERT recommendations with real pricing data
         """
         message_lower = message.lower()
         context_parts = []
         
         try:
-            # Check if user is asking about specific instance types
-            instance_keywords = ["m5", "t3", "c5", "r5", "n2", "e2", "d-series", "f-series"]
-            mentioned_instances = [kw for kw in instance_keywords if kw in message_lower]
+            # Detect workload type from message
+            workload_signals = {
+                "database": {"family_hint": "memory", "keywords": ["mysql", "postgres", "redis", "mongodb", "db", "database"]},
+                "compute": {"family_hint": "compute", "keywords": ["encoding", "batch", "processing", "ci/cd", "compile", "render"]},
+                "memory": {"family_hint": "memory", "keywords": ["cache", "in-memory", "analytics", "big data", "spark"]},
+                "web": {"family_hint": "general", "keywords": ["web", "api", "microservice", "frontend", "backend", "server"]},
+                "ml": {"family_hint": "gpu", "keywords": ["ml", "machine learning", "ai", "training", "inference", "model"]},
+            }
             
-            if mentioned_instances:
-                # Fetch pricing for mentioned instances
-                for instance_prefix in mentioned_instances[:3]:  # Limit to 3
-                    query = select(CloudInstance, CloudPricing).join(
-                        CloudPricing,
-                        and_(
-                            CloudPricing.provider == CloudInstance.provider,
-                            CloudPricing.instance_type == CloudInstance.instance_type,
-                            CloudPricing.pricing_type == "on_demand"
-                        )
-                    ).where(
-                        CloudInstance.instance_type.ilike(f"{instance_prefix}%")
-                    ).limit(5)
-                    
-                    result = await self.db.execute(query)
-                    rows = result.all()
-                    
-                    if rows:
-                        for instance, pricing in rows[:2]:  # Top 2
-                            context_parts.append(
-                                f"{instance.provider.upper()} {instance.instance_type}: "
-                                f"{instance.vcpus}vCPU, {instance.memory_gb}GB RAM, "
-                                f"${float(pricing.hourly_price):.4f}/hour"
-                            )
+            detected_workload = None
+            for workload, config in workload_signals.items():
+                if any(kw in message_lower for kw in config["keywords"]):
+                    detected_workload = config["family_hint"]
+                    context_parts.append(f"🎯 Detected workload: {workload.upper()}")
+                    break
             
-            # Check if user mentions workload patterns
-            if any(word in message_lower for word in ["batch", "pipeline", "daily", "scheduled"]):
-                context_parts.append(
-                    "Note: For batch/scheduled workloads, Spot instances can save 70-90% "
-                    "(e.g., AWS Spot, GCP Preemptible, Azure Spot)"
+            # Extract resource requirements
+            vcpu_pattern = r'(\d+)\s*(?:vcpu|cpu|core)'
+            memory_pattern = r'(\d+)\s*(?:gb|gib|g)\s*(?:ram|memory)'
+            
+            import re
+            vcpu_match = re.search(vcpu_pattern, message_lower)
+            memory_match = re.search(memory_pattern, message_lower)
+            
+            min_vcpus = int(vcpu_match.group(1)) if vcpu_match else 2
+            min_memory = float(memory_match.group(1)) if memory_match else 8
+            
+            # Calculate memory-to-vCPU ratio to determine instance family
+            ratio = min_memory / min_vcpus if min_vcpus > 0 else 4
+            
+            if ratio < 2:
+                family_type = "compute_optimized"
+                family_note = "High CPU, Low Memory (ratio < 2:1)"
+            elif ratio > 8:
+                family_type = "memory_optimized"
+                family_note = "Low CPU, High Memory (ratio > 8:1)"
+            else:
+                family_type = "general_purpose"
+                family_note = "Balanced (ratio 4:1 to 8:1)"
+            
+            context_parts.append(f"📊 Resource ratio: {ratio:.1f}:1 → {family_note}")
+            
+            # Fetch appropriate instances based on detected family
+            query = select(CloudInstance, CloudPricing).join(
+                CloudPricing,
+                and_(
+                    CloudPricing.provider == CloudInstance.provider,
+                    CloudPricing.instance_type == CloudInstance.instance_type,
+                    CloudPricing.pricing_type == "on_demand"
                 )
-            
-            # Check if user mentions database
-            if any(word in message_lower for word in ["database", "db", "mysql", "postgres", "sql"]):
-                context_parts.append(
-                    "Note: Memory-optimized instances recommended for databases. "
-                    "Consider managed services (RDS, Cloud SQL, Azure Database) for production."
+            ).where(
+                and_(
+                    CloudInstance.vcpus >= min_vcpus * 0.8,  # Allow some flexibility
+                    CloudInstance.vcpus <= min_vcpus * 1.5,
+                    CloudInstance.memory_gb >= min_memory * 0.8,
+                    CloudInstance.memory_gb <= min_memory * 1.5,
                 )
+            ).limit(9)  # 3 per provider
             
-            # Check if asking for comparison
-            if any(word in message_lower for word in ["compare", "vs", "versus", "difference"]):
-                # Fetch sample instances for comparison
-                query = select(CloudInstance, CloudPricing).join(
-                    CloudPricing,
-                    and_(
-                        CloudPricing.provider == CloudInstance.provider,
-                        CloudPricing.instance_type == CloudInstance.instance_type,
-                        CloudPricing.pricing_type == "on_demand"
-                    )
-                ).where(
-                    and_(
-                        CloudInstance.vcpus >= 4,
-                        CloudInstance.vcpus <= 8,
-                        CloudInstance.memory_gb >= 16,
-                        CloudInstance.memory_gb <= 32
-                    )
-                ).limit(9)  # 3 per cloud
-                
-                result = await self.db.execute(query)
-                rows = result.all()
-                
-                if rows:
-                    by_provider = {}
-                    for instance, pricing in rows:
-                        if instance.provider not in by_provider:
-                            by_provider[instance.provider] = []
+            result = await self.db.execute(query)
+            rows = result.all()
+            
+            if rows:
+                # Group by provider
+                by_provider = {"aws": [], "gcp": [], "azure": []}
+                for instance, pricing in rows:
+                    if instance.provider in by_provider:
                         by_provider[instance.provider].append((instance, pricing))
-                    
-                    for provider, instances in list(by_provider.items())[:3]:
-                        if instances:
-                            inst, price = instances[0]
-                            context_parts.append(
-                                f"{provider.upper()} example: {inst.instance_type} "
-                                f"({inst.vcpus}vCPU, {inst.memory_gb}GB) = "
-                                f"${float(price.hourly_price):.4f}/hr"
-                            )
+                
+                # Get best match from each provider
+                for provider in ["aws", "gcp", "azure"]:
+                    if by_provider[provider]:
+                        # Sort by price
+                        sorted_instances = sorted(by_provider[provider], key=lambda x: float(x[1].hourly_price))
+                        inst, price = sorted_instances[0]  # Cheapest
+                        
+                        monthly = float(price.hourly_price) * 730
+                        ratio_str = f"{inst.memory_gb / inst.vcpus:.1f}:1"
+                        
+                        family_indicator = ""
+                        if inst.memory_gb / inst.vcpus < 2:
+                            family_indicator = "⚡COMPUTE-OPT"
+                        elif inst.memory_gb / inst.vcpus > 8:
+                            family_indicator = "💾MEMORY-OPT"
+                        else:
+                            family_indicator = "⚖️BALANCED"
+                        
+                        context_parts.append(
+                            f"{provider.upper()}: {inst.instance_type} "
+                            f"({inst.vcpus}vCPU, {inst.memory_gb}GB, ratio {ratio_str}) "
+                            f"= ${float(price.hourly_price):.4f}/hr (${monthly:.0f}/mo) "
+                            f"[{family_indicator}]"
+                        )
             
-            if context_parts:
-                return " | ".join(context_parts[:5])  # Max 5 context items
+            # Check for spot/batch keywords
+            if any(word in message_lower for word in ["batch", "scheduled", "daily", "nightly", "fault-tolerant", "interruptible"]):
+                context_parts.append("💡 SPOT ELIGIBLE: Workload seems fault-tolerant → Consider Spot/Preemptible for 70-90% savings")
+            
+            # Check for database-specific advice
+            if any(word in message_lower for word in ["database", "db", "mysql", "postgres"]):
+                context_parts.append("🗄️ DATABASE DETECTED: Use MEMORY-OPTIMIZED (R-series/highmem/E-series), NOT compute-optimized!")
+            
+            # Check for ML workload
+            if any(word in message_lower for word in ["ml", "machine learning", "training", "ai", "neural"]):
+                context_parts.append("🤖 ML WORKLOAD: Consider GPU instances (P/A/NC series) for training, CPU for inference")
+            
+            # Return context if we found anything useful
+            if len(context_parts) >= 2:  # At least 2 pieces of info
+                return " | ".join(context_parts[:8])  # Max 8 items
             
             return None
             
         except Exception as e:
-            logger.error(f"Error getting context from DB: {e}")
+            logger.error(f"Error getting expert context from DB: {e}")
             return None
     
     async def get_quick_suggestions(self, workload_type: str) -> List[str]:
