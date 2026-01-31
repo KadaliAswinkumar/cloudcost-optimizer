@@ -7,10 +7,14 @@ import {
   MemoryStick,
   ChevronDown,
   X,
-  Loader2
+  Loader2,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 import CloudBadge from '../components/CloudBadge'
 import { api } from '../api/client'
+
+const ITEMS_PER_PAGE = 50
 
 const categories = [
   { id: 'all', name: 'All Categories' },
@@ -35,6 +39,7 @@ export default function InstanceFinder() {
   const [instances, setInstances] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
 
   // Fetch instances from API
   useEffect(() => {
@@ -80,6 +85,56 @@ export default function InstanceFinder() {
       return true
     })
   }, [searchQuery, selectedProviders, selectedCategory, filters, instances])
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, selectedProviders, selectedCategory, filters])
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredInstances.length / ITEMS_PER_PAGE)
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const endIndex = startIndex + ITEMS_PER_PAGE
+  const currentInstances = filteredInstances.slice(startIndex, endIndex)
+
+  // Generate page numbers to display
+  const getPageNumbers = () => {
+    const pages = []
+    const showPages = 7 // Show max 7 page buttons
+    
+    if (totalPages <= showPages) {
+      // Show all pages if total is small
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i)
+      }
+    } else {
+      // Always show first page
+      pages.push(1)
+      
+      if (currentPage > 3) {
+        pages.push('...')
+      }
+      
+      // Show pages around current page
+      const start = Math.max(2, currentPage - 1)
+      const end = Math.min(totalPages - 1, currentPage + 1)
+      
+      for (let i = start; i <= end; i++) {
+        pages.push(i)
+      }
+      
+      if (currentPage < totalPages - 2) {
+        pages.push('...')
+      }
+      
+      // Always show last page
+      if (totalPages > 1) {
+        pages.push(totalPages)
+      }
+    }
+    
+    return pages
+  }
 
   const toggleProvider = (provider) => {
     setSelectedProviders(prev => 
@@ -232,8 +287,13 @@ export default function InstanceFinder() {
       {/* Results count */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-400">
-          Showing <span className="text-white font-medium">{filteredInstances.length}</span> instances
+          Showing <span className="text-white font-medium">{startIndex + 1}-{Math.min(endIndex, filteredInstances.length)}</span> of <span className="text-white font-medium">{filteredInstances.length}</span> instances
         </p>
+        {totalPages > 1 && (
+          <p className="text-sm text-slate-400">
+            Page <span className="text-white font-medium">{currentPage}</span> of <span className="text-white font-medium">{totalPages}</span>
+          </p>
+        )}
       </div>
 
       {/* Results table */}
@@ -284,7 +344,7 @@ export default function InstanceFinder() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
-              {filteredInstances.map((instance, index) => (
+              {currentInstances.map((instance, index) => (
                 <tr 
                   key={`${instance.provider}-${instance.instance_type}`}
                   className="hover:bg-slate-800/30 transition-colors cursor-pointer"
@@ -331,6 +391,62 @@ export default function InstanceFinder() {
         </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {!loading && !error && totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-6">
+          {/* Previous Button */}
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+            className={`
+              px-4 py-2 rounded-lg border transition-all
+              ${currentPage === 1
+                ? 'border-slate-700 text-slate-600 cursor-not-allowed'
+                : 'border-slate-600 text-slate-300 hover:bg-slate-800 hover:border-slate-500'
+              }
+            `}
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+
+          {/* Page Numbers */}
+          {getPageNumbers().map((page, idx) => (
+            page === '...' ? (
+              <span key={`ellipsis-${idx}`} className="px-3 text-slate-500">...</span>
+            ) : (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`
+                  px-4 py-2 rounded-lg border transition-all min-w-[44px]
+                  ${currentPage === page
+                    ? 'bg-blue-500 border-blue-500 text-white font-semibold'
+                    : 'border-slate-600 text-slate-300 hover:bg-slate-800 hover:border-slate-500'
+                  }
+                `}
+              >
+                {page}
+              </button>
+            )
+          ))}
+
+          {/* Next Button */}
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages}
+            className={`
+              px-4 py-2 rounded-lg border transition-all
+              ${currentPage === totalPages
+                ? 'border-slate-700 text-slate-600 cursor-not-allowed'
+                : 'border-slate-600 text-slate-300 hover:bg-slate-800 hover:border-slate-500'
+              }
+            `}
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+      )}
     </div>
   )
 }
