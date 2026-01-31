@@ -1,477 +1,361 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { 
   Sparkles, 
-  Cpu, 
-  MemoryStick, 
-  DollarSign, 
-  TrendingDown,
-  Zap,
+  Send,
+  Mic,
+  MicOff,
   Loader2,
-  AlertCircle,
-  CheckCircle2,
-  Info,
-  ArrowRight,
-  Award
+  Bot,
+  User,
+  Lightbulb,
+  Copy,
+  Check
 } from 'lucide-react'
-import CloudBadge from '../components/CloudBadge'
 import { api } from '../api/client'
 
-const workloadIcons = {
-  web_app: '🌐',
-  database: '🗄️',
-  compute_intensive: '⚙️',
-  memory_intensive: '💾',
-  ml_training: '🤖',
-  general: '⚡'
-}
-
 export default function CloudCostAI() {
+  const [messages, setMessages] = useState([])
+  const [inputMessage, setInputMessage] = useState('')
   const [loading, setLoading] = useState(false)
-  const [recommendations, setRecommendations] = useState(null)
-  const [workloadTypes, setWorkloadTypes] = useState([])
-  const [error, setError] = useState(null)
-  
-  const [formData, setFormData] = useState({
-    min_vcpus: 4,
-    min_memory_gb: 16,
-    workload_type: 'general',
-    traffic_pattern: 'steady',
-    providers: ['aws', 'gcp', 'azure'],
-    max_monthly_budget: '',
-    spot_eligible: true,
-    limit: 10
-  })
+  const [isListening, setIsListening] = useState(false)
+  const [suggestions, setSuggestions] = useState([])
+  const [copied, setCopied] = useState(false)
+  const messagesEndRef = useRef(null)
+  const recognitionRef = useRef(null)
 
-  // Fetch workload types on mount
+  // Auto-scroll to bottom when new messages arrive
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
   useEffect(() => {
-    const fetchWorkloadTypes = async () => {
+    scrollToBottom()
+  }, [messages])
+
+  // Fetch suggestions on mount
+  useEffect(() => {
+    const fetchSuggestions = async () => {
       try {
-        const response = await api.getWorkloadTypes()
-        setWorkloadTypes(response.data.workload_types)
+        const response = await api.getChatSuggestions('general')
+        setSuggestions(response.data.suggestions || [])
       } catch (err) {
-        console.error('Failed to fetch workload types:', err)
+        console.error('Failed to fetch suggestions:', err)
+        setSuggestions([
+          "What's the best instance for my workload?",
+          "How can I reduce my cloud costs?",
+          "Compare AWS, GCP, and Azure pricing"
+        ])
       }
     }
-    fetchWorkloadTypes()
+    fetchSuggestions()
+
+    // Add welcome message
+    setMessages([{
+      role: 'assistant',
+      content: `👋 Hi! I'm **CloudCost AI™**, your personal cloud cost optimization expert.
+
+I can help you:
+- 💰 Find the most cost-effective cloud instances
+- ⚡ Optimize your workload performance
+- 📊 Compare AWS, GCP, and Azure pricing
+- 💡 Suggest money-saving strategies
+
+**Just describe your workload in plain English!** 
+
+For example: "I need instances for a daily data pipeline processing 3GB"
+
+What can I help you with today?`
+    }])
   }, [])
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  // Voice recognition setup
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+      recognitionRef.current = new SpeechRecognition()
+      recognitionRef.current.continuous = false
+      recognitionRef.current.interimResults = false
+      recognitionRef.current.lang = 'en-US'
+
+      recognitionRef.current.onresult = (event) => {
+        const transcript = event.results[0][0].transcript
+        setInputMessage(transcript)
+        setIsListening(false)
+      }
+
+      recognitionRef.current.onerror = () => {
+        setIsListening(false)
+      }
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false)
+      }
+    }
+  }, [])
+
+  const toggleVoiceInput = () => {
+    if (!recognitionRef.current) {
+      alert('Voice input not supported in your browser. Please use Chrome.')
+      return
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop()
+      setIsListening(false)
+    } else {
+      recognitionRef.current.start()
+      setIsListening(true)
+    }
+  }
+
+  const sendMessage = async (messageText = null) => {
+    const textToSend = messageText || inputMessage.trim()
+    
+    if (!textToSend) return
+
+    // Add user message
+    const userMessage = { role: 'user', content: textToSend }
+    setMessages(prev => [...prev, userMessage])
+    setInputMessage('')
     setLoading(true)
-    setError(null)
 
     try {
-      const requestData = {
-        min_vcpus: parseInt(formData.min_vcpus),
-        min_memory_gb: parseFloat(formData.min_memory_gb),
-        workload_type: formData.workload_type,
-        traffic_pattern: formData.traffic_pattern,
-        providers: formData.providers.length > 0 ? formData.providers : null,
-        spot_eligible: formData.spot_eligible,
-        limit: formData.limit
+      // Prepare conversation history (exclude welcome message)
+      const conversationHistory = messages
+        .filter(m => m.role !== 'system')
+        .map(m => ({ role: m.role, content: m.content }))
+
+      // Send to API
+      const response = await api.chatWithAI({
+        message: textToSend,
+        conversation_history: conversationHistory
+      })
+
+      // Add AI response
+      if (response.data.success) {
+        const aiMessage = {
+          role: 'assistant',
+          content: response.data.message
+        }
+        setMessages(prev => [...prev, aiMessage])
+      } else {
+        throw new Error(response.data.error || 'Failed to get response')
       }
-      
-      if (formData.max_monthly_budget && formData.max_monthly_budget > 0) {
-        requestData.max_monthly_budget = parseFloat(formData.max_monthly_budget)
-      }
-      
-      console.log('Sending AI recommendation request:', requestData)
-      const response = await api.getAIRecommendations(requestData)
-      console.log('Received AI recommendations:', response.data)
-      
-      setRecommendations(response.data.data)
     } catch (err) {
-      console.error('Error fetching AI recommendations:', err)
-      const errorMessage = err.response?.data?.detail || 'Failed to get recommendations. Please try again.'
-      setError(errorMessage)
+      console.error('Chat error:', err)
+      const errorMessage = {
+        role: 'assistant',
+        content: `😕 Sorry, I encountered an error: ${err.response?.data?.detail || err.message}
+
+Please try again or rephrase your question.`
+      }
+      setMessages(prev => [...prev, errorMessage])
     } finally {
       setLoading(false)
     }
   }
 
-  const toggleProvider = (provider) => {
-    setFormData(prev => ({
-      ...prev,
-      providers: prev.providers.includes(provider)
-        ? prev.providers.filter(p => p !== provider)
-        : [...prev, provider],
-    }))
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      sendMessage()
+    }
+  }
+
+  const useSuggestion = (suggestion) => {
+    setInputMessage(suggestion)
+    // Auto-send after a brief delay
+    setTimeout(() => sendMessage(suggestion), 300)
+  }
+
+  const copyMessage = (content) => {
+    navigator.clipboard.writeText(content)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="flex flex-col h-[calc(100vh-8rem)] animate-fade-in">
       {/* Header */}
-      <div className="text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20 mb-4">
+      <div className="text-center mb-6">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20 mb-3">
           <Sparkles className="w-4 h-4 text-purple-400" />
-          <span className="text-sm font-medium text-purple-300">Powered by AI</span>
+          <span className="text-sm font-medium text-purple-300">Conversational AI</span>
         </div>
-        <h1 className="text-4xl font-bold text-white mb-3">
+        <h1 className="text-3xl font-bold text-white mb-2">
           <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-            CloudCost AI™
+            CloudCost AI™ Chat
           </span>
         </h1>
-        <p className="text-lg text-slate-300 max-w-2xl mx-auto">
-          Get intelligent, AI-powered instance recommendations tailored to your exact workload.
-          Save up to 70% on cloud costs.
+        <p className="text-slate-300">
+          Ask me anything about cloud instances and costs in plain English! 🎤
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Input Form */}
-        <div className="lg:col-span-1">
-          <form onSubmit={handleSubmit} className="glass-card p-6 space-y-6 sticky top-6">
-            <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-              <Cpu className="w-5 h-5 text-blue-400" />
-              Your Requirements
-            </h2>
-
-            {/* vCPUs */}
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Minimum vCPUs
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="256"
-                value={formData.min_vcpus}
-                onChange={(e) => setFormData({ ...formData, min_vcpus: e.target.value })}
-                className="input-field"
-                required
-              />
-            </div>
-
-            {/* Memory */}
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Minimum Memory (GB)
-              </label>
-              <input
-                type="number"
-                min="0.5"
-                max="4096"
-                step="0.5"
-                value={formData.min_memory_gb}
-                onChange={(e) => setFormData({ ...formData, min_memory_gb: e.target.value })}
-                className="input-field"
-                required
-              />
-            </div>
-
-            {/* Workload Type */}
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Workload Type
-              </label>
-              <select
-                value={formData.workload_type}
-                onChange={(e) => setFormData({ ...formData, workload_type: e.target.value })}
-                className="input-field"
-              >
-                {workloadTypes.map((type) => (
-                  <option key={type.id} value={type.id}>
-                    {type.icon} {type.name}
-                  </option>
-                ))}
-              </select>
-              {workloadTypes.find(t => t.id === formData.workload_type) && (
-                <p className="text-xs text-slate-400 mt-1">
-                  {workloadTypes.find(t => t.id === formData.workload_type).description}
-                </p>
-              )}
-            </div>
-
-            {/* Traffic Pattern */}
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Traffic Pattern
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {['steady', 'variable', 'spiky'].map((pattern) => (
-                  <button
-                    key={pattern}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, traffic_pattern: pattern })}
-                    className={`
-                      px-3 py-2 rounded-lg text-sm font-medium transition-all
-                      ${formData.traffic_pattern === pattern
-                        ? 'bg-blue-500/20 text-blue-300 border border-blue-500/50'
-                        : 'bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-600'
-                      }
-                    `}
-                  >
-                    {pattern.charAt(0).toUpperCase() + pattern.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Cloud Providers */}
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Cloud Providers
-              </label>
-              <div className="flex gap-2">
-                {['aws', 'gcp', 'azure'].map((provider) => (
-                  <button
-                    key={provider}
-                    type="button"
-                    onClick={() => toggleProvider(provider)}
-                    className={`
-                      flex-1 px-3 py-2 rounded-lg border transition-all
-                      ${formData.providers.includes(provider)
-                        ? 'bg-slate-800 border-primary-500/50'
-                        : 'border-slate-700 opacity-50 hover:opacity-100'
-                      }
-                    `}
-                  >
-                    <CloudBadge provider={provider} size="sm" />
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Budget (Optional) */}
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                <DollarSign className="w-4 h-4 inline mr-1" />
-                Max Monthly Budget (Optional)
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="10"
-                placeholder="No limit"
-                value={formData.max_monthly_budget}
-                onChange={(e) => setFormData({ ...formData, max_monthly_budget: e.target.value })}
-                className="input-field"
-              />
-            </div>
-
-            {/* Spot Eligible */}
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="spot_eligible"
-                checked={formData.spot_eligible}
-                onChange={(e) => setFormData({ ...formData, spot_eligible: e.target.checked })}
-                className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-primary-500 focus:ring-primary-500"
-              />
-              <label htmlFor="spot_eligible" className="text-sm text-slate-300">
-                Consider Spot/Preemptible instances (up to 90% savings)
-              </label>
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading || formData.providers.length === 0}
-              className="btn-primary w-full"
+      {/* Chat Container */}
+      <div className="flex-1 glass-card flex flex-col overflow-hidden">
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {messages.map((message, idx) => (
+            <div
+              key={idx}
+              className={`flex gap-4 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
             >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  AI is analyzing...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-5 h-5" />
-                  Get AI Recommendations
-                </>
-              )}
-            </button>
-          </form>
+              {/* Avatar */}
+              <div className={`
+                flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center
+                ${message.role === 'user' 
+                  ? 'bg-gradient-to-br from-blue-500 to-purple-500' 
+                  : 'bg-gradient-to-br from-purple-500 to-pink-500'
+                }
+              `}>
+                {message.role === 'user' ? (
+                  <User className="w-5 h-5 text-white" />
+                ) : (
+                  <Bot className="w-5 h-5 text-white" />
+                )}
+              </div>
+
+              {/* Message Bubble */}
+              <div className={`
+                flex-1 max-w-3xl
+                ${message.role === 'user' ? 'text-right' : 'text-left'}
+              `}>
+                <div className={`
+                  inline-block px-5 py-3 rounded-2xl text-sm leading-relaxed
+                  ${message.role === 'user'
+                    ? 'bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-white'
+                    : 'bg-slate-800/50 border border-slate-700/50 text-slate-200'
+                  }
+                `}>
+                  {/* Render markdown-like formatting */}
+                  <div 
+                    className="prose prose-invert prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{
+                      __html: message.content
+                        .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
+                        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                        .replace(/`(.*?)`/g, '<code class="px-1.5 py-0.5 rounded bg-slate-900 text-blue-400 font-mono text-xs">$1</code>')
+                        .replace(/\n\n/g, '<br/><br/>')
+                        .replace(/\n-/g, '<br/>•')
+                    }}
+                  />
+                </div>
+
+                {/* Copy button for AI messages */}
+                {message.role === 'assistant' && (
+                  <button
+                    onClick={() => copyMessage(message.content)}
+                    className="mt-2 text-xs text-slate-500 hover:text-slate-300 flex items-center gap-1"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-3 h-3" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3 h-3" />
+                        Copy
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {/* Loading indicator */}
+          {loading && (
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                <Bot className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-slate-800/50 border border-slate-700/50">
+                <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />
+                <span className="text-sm text-slate-400">AI is thinking...</span>
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
         </div>
 
-        {/* Results */}
-        <div className="lg:col-span-2 space-y-6">
-          {error && (
-            <div className="glass-card p-6 border-l-4 border-red-500">
-              <div className="flex gap-3">
-                <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h3 className="font-semibold text-red-400 mb-1">Error</h3>
-                  <p className="text-sm text-slate-300">{error}</p>
-                </div>
-              </div>
+        {/* Suggestions (show only if no user messages yet) */}
+        {messages.filter(m => m.role === 'user').length === 0 && suggestions.length > 0 && (
+          <div className="px-6 pb-4 border-t border-slate-800/50">
+            <div className="flex items-center gap-2 text-xs text-slate-400 mb-3 mt-4">
+              <Lightbulb className="w-4 h-4" />
+              <span>Try asking:</span>
             </div>
-          )}
-
-          {!recommendations && !loading && !error && (
-            <div className="glass-card p-12 text-center">
-              <Sparkles className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">Ready to optimize?</h3>
-              <p className="text-slate-400">
-                Fill in your requirements and let our AI find the perfect instances for you.
-              </p>
+            <div className="flex flex-wrap gap-2">
+              {suggestions.map((suggestion, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => useSuggestion(suggestion)}
+                  className="px-3 py-2 text-xs rounded-lg bg-slate-800/50 border border-slate-700 text-slate-300 hover:border-purple-500/50 hover:text-white transition-all"
+                >
+                  {suggestion}
+                </button>
+              ))}
             </div>
-          )}
+          </div>
+        )}
 
-          {recommendations && (
-            <>
-              {/* Insights Summary */}
-              {recommendations.insights && (
-                <div className="glass-card p-6">
-                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <TrendingDown className="w-5 h-5 text-green-400" />
-                    Cost Insights
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div className="p-4 rounded-lg bg-slate-800/50">
-                      <div className="text-xs text-slate-400 mb-1">Cheapest Option</div>
-                      <div className="text-2xl font-bold text-green-400">
-                        ${recommendations.insights.price_range?.cheapest?.toFixed(2)}
-                      </div>
-                      <div className="text-xs text-slate-500">per month</div>
-                    </div>
-                    
-                    <div className="p-4 rounded-lg bg-slate-800/50">
-                      <div className="text-xs text-slate-400 mb-1">Potential Savings</div>
-                      <div className="text-2xl font-bold text-blue-400">
-                        {recommendations.insights.savings_potential?.percent?.toFixed(0)}%
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        ${recommendations.insights.savings_potential?.monthly_amount?.toFixed(0)}/mo
-                      </div>
-                    </div>
-                    
-                    {recommendations.insights.spot_instance_opportunity?.average_savings > 0 && (
-                      <div className="p-4 rounded-lg bg-slate-800/50">
-                        <div className="text-xs text-slate-400 mb-1">With Spot Instances</div>
-                        <div className="text-2xl font-bold text-purple-400">
-                          {recommendations.insights.spot_instance_opportunity?.average_savings?.toFixed(0)}%
-                        </div>
-                        <div className="text-xs text-slate-500">additional savings</div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Key Insights */}
-                  {recommendations.insights.key_insights?.length > 0 && (
-                    <div className="space-y-2">
-                      {recommendations.insights.key_insights.map((insight, idx) => (
-                        <div key={idx} className="flex items-start gap-2 text-sm text-slate-300">
-                          <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
-                          <span>{insight}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+        {/* Input Area */}
+        <div className="p-6 border-t border-slate-800/50">
+          <div className="flex gap-3">
+            {/* Voice Input Button */}
+            <button
+              onClick={toggleVoiceInput}
+              disabled={loading}
+              className={`
+                flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-all
+                ${isListening
+                  ? 'bg-red-500/20 border-2 border-red-500 text-red-400 animate-pulse'
+                  : 'bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-600'
+                }
+              `}
+              title="Voice input (click to speak)"
+            >
+              {isListening ? (
+                <MicOff className="w-5 h-5" />
+              ) : (
+                <Mic className="w-5 h-5" />
               )}
+            </button>
 
-              {/* Recommendations List */}
-              <div className="space-y-4">
-                <h3 className="text-xl font-semibold text-white flex items-center gap-2">
-                  <Award className="w-5 h-5 text-yellow-400" />
-                  Top {recommendations.total} Recommendations
-                </h3>
+            {/* Text Input */}
+            <div className="flex-1 relative">
+              <textarea
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder={isListening ? "🎤 Listening..." : "Ask me anything about cloud costs... (or click 🎤 to speak)"}
+                disabled={loading || isListening}
+                className="w-full h-12 px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 resize-none"
+                rows="1"
+              />
+            </div>
 
-                {recommendations.recommendations?.map((rec) => (
-                  <div
-                    key={`${rec.provider}-${rec.instance_type}`}
-                    className={`
-                      glass-card p-6 transition-all hover:border-primary-500/50
-                      ${rec.rank === 1 ? 'ring-2 ring-yellow-500/20' : ''}
-                    `}
-                  >
-                    {/* Rank Badge */}
-                    {rec.rank <= 3 && (
-                      <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-yellow-500/10 to-amber-500/10 border border-yellow-500/20 mb-3">
-                        <span className="text-yellow-400 text-sm">
-                          {rec.rank === 1 ? '🥇' : rec.rank === 2 ? '🥈' : '🥉'}
-                        </span>
-                        <span className="text-xs font-medium text-yellow-300">
-                          {rec.rank === 1 ? 'Best Match' : `#${rec.rank}`}
-                        </span>
-                      </div>
-                    )}
+            {/* Send Button */}
+            <button
+              onClick={() => sendMessage()}
+              disabled={loading || !inputMessage.trim() || isListening}
+              className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all shadow-lg shadow-purple-500/25"
+            >
+              {loading ? (
+                <Loader2 className="w-5 h-5 text-white animate-spin" />
+              ) : (
+                <Send className="w-5 h-5 text-white" />
+              )}
+            </button>
+          </div>
 
-                    <div className="flex flex-col md:flex-row gap-6">
-                      {/* Left: Instance Info */}
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3">
-                          <CloudBadge provider={rec.provider} />
-                          <h4 className="text-lg font-semibold text-white font-mono">
-                            {rec.instance_type}
-                          </h4>
-                          <div className="flex-1" />
-                          <div className="text-right">
-                            <div className="text-xs text-slate-400">AI Score</div>
-                            <div className="text-lg font-bold text-primary-400">{rec.score}/100</div>
-                          </div>
-                        </div>
-
-                        {/* Specs */}
-                        <div className="grid grid-cols-2 gap-3 mb-4">
-                          <div className="flex items-center gap-2 text-sm text-slate-300">
-                            <Cpu className="w-4 h-4 text-slate-400" />
-                            <span>{rec.vcpus} vCPUs</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-slate-300">
-                            <MemoryStick className="w-4 h-4 text-slate-400" />
-                            <span>{rec.memory_gb} GB RAM</span>
-                          </div>
-                        </div>
-
-                        {/* Tags */}
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {rec.best_for?.map((tag, idx) => (
-                            <span
-                              key={idx}
-                              className="px-2 py-1 text-xs rounded-md bg-slate-800 text-slate-300 border border-slate-700"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                          {rec.processor_architecture === 'arm64' && (
-                            <span className="px-2 py-1 text-xs rounded-md bg-purple-500/10 text-purple-300 border border-purple-500/20">
-                              ARM (Efficient)
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Reasoning */}
-                        <p className="text-sm text-slate-400 leading-relaxed">
-                          {rec.reasoning}
-                        </p>
-                      </div>
-
-                      {/* Right: Pricing */}
-                      <div className="md:w-48 flex flex-col gap-3">
-                        {/* On-Demand Price */}
-                        <div className="p-4 rounded-lg bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20">
-                          <div className="text-xs text-slate-400 mb-1">On-Demand</div>
-                          <div className="text-2xl font-bold text-white">
-                            ${rec.monthly_price?.toFixed(2)}
-                          </div>
-                          <div className="text-xs text-slate-500">per month</div>
-                          <div className="text-xs text-slate-500 mt-1">
-                            ${rec.hourly_price?.toFixed(4)}/hour
-                          </div>
-                        </div>
-
-                        {/* Spot Price */}
-                        {rec.spot_price && (
-                          <div className="p-4 rounded-lg bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20">
-                            <div className="text-xs text-slate-400 mb-1">Spot/Preemptible</div>
-                            <div className="text-2xl font-bold text-green-400">
-                              ${rec.spot_price?.toFixed(2)}
-                            </div>
-                            <div className="text-xs text-green-400">
-                              Save {rec.spot_savings?.toFixed(0)}%
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
+          {/* Tips */}
+          <div className="mt-3 text-xs text-slate-500 text-center">
+            💡 Pro tip: Be specific about your workload for better recommendations
+          </div>
         </div>
       </div>
     </div>

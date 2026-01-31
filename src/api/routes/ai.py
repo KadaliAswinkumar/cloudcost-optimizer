@@ -1,15 +1,17 @@
 """
 API routes for CloudCost AI™
-AI-powered instance recommendations
+AI-powered instance recommendations + Conversational AI
 """
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Dict
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
 from src.services.ai_recommender import CloudCostAI
+from src.services.conversational_ai import ConversationalAI
 
 router = APIRouter(prefix="/ai", tags=["CloudCost AI"])
 
@@ -169,3 +171,102 @@ async def get_workload_types():
             }
         ]
     }
+
+
+# ============================================================================
+# CONVERSATIONAL AI ENDPOINTS
+# ============================================================================
+
+class ChatMessage(BaseModel):
+    """Chat message model"""
+    message: str = Field(..., min_length=1, max_length=2000, description="User's message")
+    conversation_history: Optional[List[Dict[str, str]]] = Field(
+        default=None,
+        description="Previous messages in format [{role: 'user'|'assistant', content: 'message'}]"
+    )
+
+
+@router.post("/chat")
+async def chat_with_ai(
+    request: ChatMessage,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Chat with CloudCost AI™ - Conversational interface
+    
+    **NEW!** ChatGPT-like conversational interface for cloud cost optimization.
+    
+    Ask questions in natural language like:
+    - "I need instances for a daily data pipeline processing 3GB"
+    - "Best setup for a web app with 1000 users?"
+    - "What's the difference between AWS m5 and GCP n2?"
+    
+    The AI will:
+    - Understand your requirements
+    - Ask clarifying questions
+    - Recommend specific instances with pricing
+    - Provide optimization tips
+    - Access real pricing data from our database
+    
+    Returns:
+        - AI response message
+        - Usage statistics (tokens)
+        - Model information
+    """
+    try:
+        ai = ConversationalAI(db)
+        
+        result = await ai.chat(
+            message=request.message,
+            conversation_history=request.conversation_history,
+            stream=False
+        )
+        
+        if not result.get("success", False) and "error" in result:
+            raise HTTPException(status_code=500, detail=result["error"])
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to process chat message: {str(e)}"
+        )
+
+
+@router.get("/suggestions")
+async def get_chat_suggestions(workload_type: str = "general"):
+    """
+    Get quick suggestion prompts for the chat interface
+    
+    These are example prompts users can click to start a conversation.
+    
+    Args:
+        workload_type: Type of workload (data_pipeline, web_app, database, ml_training, general)
+    
+    Returns:
+        List of suggestion prompts
+    """
+    try:
+        # Create AI instance without DB (not needed for suggestions)
+        ai = ConversationalAI(db=None)
+        suggestions = await ai.get_quick_suggestions(workload_type)
+        
+        return {
+            "success": True,
+            "workload_type": workload_type,
+            "suggestions": suggestions
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "suggestions": [
+                "What's the best instance for my workload?",
+                "How can I reduce my cloud costs?",
+                "Compare AWS, GCP, and Azure pricing"
+            ]
+        }
+

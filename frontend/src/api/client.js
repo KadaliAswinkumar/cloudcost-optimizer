@@ -54,6 +54,12 @@ export const api = {
     apiClient.post('/api/v1/ai/recommend', data),
   getWorkloadTypes: () => 
     apiClient.get('/api/v1/ai/workload-types'),
+  
+  // Conversational AI (Chat)
+  chatWithAI: (data) => 
+    apiClient.post('/api/v1/ai/chat', data),
+  getChatSuggestions: (workloadType = 'general') => 
+    apiClient.get('/api/v1/ai/suggestions', { params: { workload_type: workloadType } }),
 }
 
 export default apiClient
