@@ -22,10 +22,11 @@ A production-ready full-stack application that helps you find the most cost-effe
 
 ### Core Capabilities
 
+- **🤖 CloudCost AI™ Chat** - ChatGPT-like conversational interface with voice input 🎤
+- **🧠 Smart AI Recommendations** - Intelligent scoring algorithm ranks instances by suitability
 - **🌐 Multi-Cloud Support** - Compare instances across AWS, GCP, and Azure in one place
 - **📊 Instance Discovery** - Browse and filter 2,000+ instance types across all major clouds
 - **💰 Cross-Cloud Comparison** - Find the cheapest option across providers for your workload
-- **🤖 Smart Recommendations** - Intelligent recommendations considering all cloud options
 - **🔄 Instance Mapping** - Find equivalent instances across different cloud providers
 - **📈 Spot Analysis** - Track spot/preemptible prices and interruption risks
 - **🛡️ Interruption Risk Analysis** - Real-time risk scoring based on historical volatility
@@ -215,6 +216,48 @@ python -c "from src.jobs.price_updater import update_all_prices; update_all_pric
 ```
 
 **Note**: AWS Pricing API is **100% FREE**. No charges for reading pricing data!
+
+---
+
+## 🤖 CloudCost AI™ Setup (Conversational Chat)
+
+**NEW!** ChatGPT-like conversational interface powered by Groq's FREE Llama 3.1 70B model.
+
+### Get Your FREE Groq API Key
+
+1. **Sign Up**: https://console.groq.com (FREE, no credit card required)
+2. **Create API Key**: https://console.groq.com/keys
+3. **Copy the key** (starts with `gsk_...`)
+
+### Add to Render
+
+1. Go to Render Dashboard → **cloudcost-optimizer** service
+2. Click **"Environment"** tab
+3. Add environment variable:
+   - **Key**: `GROQ_API_KEY`
+   - **Value**: `gsk_your_key_here`
+4. Click **"Save Changes"** (auto-redeploys)
+
+### Features
+
+- 💬 **ChatGPT-like interface** - Natural language queries
+- 🎤 **Voice input** - Speak your questions (FREE Web Speech API)
+- 🧠 **Context-aware** - Fetches real pricing from database
+- ⚡ **Super fast** - 500 tokens/second (fastest in the world!)
+- 🆓 **100% FREE** - 15,000 requests/day
+
+### Example Conversations
+
+```
+👤 "I need instances for a daily data pipeline processing 3GB"
+
+🤖 "For your daily pipeline, I recommend:
+    - AWS: m5g.xlarge (4 vCPUs, 16GB) - $0.17/hour
+    - GCP: n2-standard-4 (4 vCPUs, 16GB) - $0.19/hour
+    💡 Use Spot instances to save 70%! (~$38/month vs $125)"
+```
+
+📖 **Full guide**: [CONVERSATIONAL_AI_SETUP.md](./CONVERSATIONAL_AI_SETUP.md)
 
 ---
 
