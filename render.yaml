@@ -4,7 +4,7 @@ services:
     name: cloudcost-api
     env: python
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "alembic upgrade head && (python scripts/fetch_real_data.py || echo '⚠️  Data fetch failed') && (python scripts/fetch_real_spot_pricing.py || echo '⚠️  Spot pricing failed') && (python scripts/add_reserved_pricing.py || echo '⚠️  Reserved pricing failed') && uvicorn src.api.main:app --host 0.0.0.0 --port $PORT"
+    startCommand: "export PYTHONPATH=/opt/render/project/src:$PYTHONPATH && alembic upgrade head && (python scripts/fetch_real_data.py || echo '⚠️  Data fetch failed') && (python scripts/fetch_real_spot_pricing.py || echo '⚠️  Spot pricing failed') && (python scripts/add_reserved_pricing.py || echo '⚠️  Reserved pricing failed') && uvicorn src.api.main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
@@ -25,7 +25,7 @@ services:
     env: python
     schedule: "0 0 * * 0"  # Every Sunday at midnight UTC (Weekly)
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "python scripts/collect_spot_prices_hourly.py"
+    startCommand: "export PYTHONPATH=/opt/render/project/src:$PYTHONPATH && python scripts/collect_spot_prices_hourly.py"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
