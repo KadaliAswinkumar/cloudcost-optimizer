@@ -12,8 +12,7 @@ import statistics
 from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.cloud_provider import CloudInstance, CloudPricing
-from src.services.historical_price_generator import HistoricalPriceGenerator
+from src.models.cloud_provider import CloudInstance, CloudPricing, SpotPriceHistory
 
 logger = logging.getLogger(__name__)
 
@@ -93,32 +92,16 @@ class SpotIntelligence:
                 analysis
             )
             
-            # Generate historical price data (30 days)
-            avg_spot_hourly = analysis.get("average", {}).get("hourly", 0)
-            volatility_decimal = analysis.get("volatility", {}).get("percent", 10) / 100
-            
-            historical_data = HistoricalPriceGenerator.generate_30day_history(
-                current_price=avg_spot_hourly,
-                volatility=volatility_decimal,
-                provider=provider
+            # Get REAL historical price data from database
+            historical_data = await self._get_real_historical_prices(
+                provider,
+                instance_type,
+                region,
+                days=30
             )
             
-            # Calculate insights from historical data
-            historical_insights = HistoricalPriceGenerator.calculate_insights(historical_data)
-            
-            # Get launch recommendations
-            launch_recommendations = HistoricalPriceGenerator.get_launch_recommendations(
-                historical_insights,
-                on_demand_price["hourly"]
-            )
-            
-            # Calculate interruption frequency
-            interruption_analysis = self._calculate_interruption_frequency(
-                analysis.get("volatility", {}).get("percent", 0),
-                analysis.get("risk", {}).get("level", "unknown")
-            )
-            
-            return {
+            # Build response based on available data
+            response = {
                 "success": True,
                 "provider": provider,
                 "instance_type": instance_type,
@@ -127,14 +110,31 @@ class SpotIntelligence:
                 "spot_analysis": analysis,
                 "reserved_pricing": reserved_prices,
                 "recommendation": recommendation,
-                "historical_data": {
-                    "prices": historical_data[-168:],  # Last 7 days (168 hours)
-                    "insights": historical_insights
-                },
-                "launch_recommendations": launch_recommendations,
-                "interruption_analysis": interruption_analysis,
                 "timestamp": datetime.utcnow().isoformat()
             }
+            
+            # Only include historical data if we have it
+            if historical_data and historical_data["data_points"] > 0:
+                response["historical_data"] = historical_data
+                
+                # Calculate interruption frequency from REAL data
+                response["interruption_analysis"] = self._calculate_real_interruption_analysis(
+                    historical_data["prices"]
+                )
+                
+                # Get launch recommendations from REAL data
+                response["launch_recommendations"] = self._calculate_real_launch_recommendations(
+                    historical_data["prices"]
+                )
+            else:
+                # No historical data yet
+                response["data_collection_status"] = {
+                    "message": "Historical data collection in progress",
+                    "note": "Real-time spot prices shown, historical charts available after 24 hours of collection",
+                    "transparency": "We show ONLY real data, never simulated"
+                }
+            
+            return response
             
         except Exception as e:
             logger.error(f"Error analyzing spot instance: {e}")
@@ -625,4 +625,169 @@ class SpotIntelligence:
                 "✅ Mix spot (80%) + on-demand (20%) for reliability",
                 "✅ Use stateless workloads or checkpoint frequently"
             ]
+        }
+    
+    async def _get_real_historical_prices(
+        self,
+        provider: str,
+        instance_type: str,
+        region: Optional[str],
+        days: int = 30
+    ) -> Dict:
+        """
+        Fetch REAL historical spot prices from database
+        Returns empty if no data collected yet
+        """
+        try:
+            cutoff_date = datetime.utcnow() - timedelta(days=days)
+            
+            query = select(SpotPriceHistory).where(
+                and_(
+                    SpotPriceHistory.provider == provider,
+                    SpotPriceHistory.instance_type == instance_type,
+                    SpotPriceHistory.timestamp >= cutoff_date
+                )
+            ).order_by(SpotPriceHistory.timestamp.asc())
+            
+            if region:
+                query = query.where(SpotPriceHistory.region == region)
+            
+            result = await self.db.execute(query)
+            history = result.scalars().all()
+            
+            if not history:
+                return {
+                    "data_points": 0,
+                    "oldest_data": None,
+                    "prices": []
+                }
+            
+            # Convert to price points
+            prices = [
+                {
+                    "timestamp": h.timestamp.isoformat(),
+                    "price": float(h.spot_price),
+                    "region": h.region,
+                    "zone": h.zone
+                }
+                for h in history
+            ]
+            
+            # Calculate statistics
+            price_values = [float(h.spot_price) for h in history]
+            avg_price = statistics.mean(price_values)
+            min_price = min(price_values)
+            max_price = max(price_values)
+            std_dev = statistics.stdev(price_values) if len(price_values) > 1 else 0
+            volatility = (std_dev / avg_price * 100) if avg_price > 0 else 0
+            
+            return {
+                "data_points": len(prices),
+                "oldest_data": history[0].timestamp.isoformat(),
+                "days_of_data": (datetime.utcnow() - history[0].timestamp).days,
+                "prices": prices,
+                "statistics": {
+                    "average": round(avg_price, 6),
+                    "min": round(min_price, 6),
+                    "max": round(max_price, 6),
+                    "std_dev": round(std_dev, 6),
+                    "volatility_percent": round(volatility, 2)
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error fetching real historical prices: {e}")
+            return {
+                "data_points": 0,
+                "oldest_data": None,
+                "prices": []
+            }
+    
+    def _calculate_real_interruption_analysis(self, prices: List[Dict]) -> Dict:
+        """
+        Calculate interruption patterns from REAL price data
+        """
+        if not prices or len(prices) < 24:
+            return {
+                "insufficient_data": True,
+                "message": "Need at least 24 hours of data for interruption analysis"
+            }
+        
+        # Calculate price spikes (indication of increased demand/interruptions)
+        price_values = [p["price"] for p in prices]
+        avg_price = statistics.mean(price_values)
+        std_dev = statistics.stdev(price_values)
+        
+        # Count significant spikes (>2 std deviations)
+        spikes = sum(1 for p in price_values if p > avg_price + (2 * std_dev))
+        spike_rate = (spikes / len(prices)) * 100
+        
+        # Estimate interruption risk
+        if spike_rate < 5:
+            risk_level = "low"
+            estimated_interruptions = 2
+        elif spike_rate < 15:
+            risk_level = "medium"
+            estimated_interruptions = 5
+        else:
+            risk_level = "high"
+            estimated_interruptions = 10
+        
+        return {
+            "risk_level": risk_level,
+            "price_spikes_detected": spikes,
+            "spike_rate_percent": round(spike_rate, 2),
+            "estimated_interruptions_per_month": estimated_interruptions,
+            "data_quality": "real",
+            "data_points_analyzed": len(prices)
+        }
+    
+    def _calculate_real_launch_recommendations(self, prices: List[Dict]) -> Dict:
+        """
+        Calculate best launch times from REAL price data
+        """
+        if not prices or len(prices) < 168:  # Need at least 7 days
+            return {
+                "insufficient_data": True,
+                "message": "Need at least 7 days of data for launch recommendations"
+            }
+        
+        # Group by hour of day
+        hour_prices = {}
+        for p in prices:
+            timestamp = datetime.fromisoformat(p["timestamp"])
+            hour = timestamp.hour
+            if hour not in hour_prices:
+                hour_prices[hour] = []
+            hour_prices[hour].append(p["price"])
+        
+        # Calculate average price per hour
+        hour_avgs = {
+            hour: statistics.mean(prices) 
+            for hour, prices in hour_prices.items()
+        }
+        
+        # Find cheapest hours
+        sorted_hours = sorted(hour_avgs.items(), key=lambda x: x[1])
+        best_hours = sorted_hours[:3]
+        avoid_hours = sorted_hours[-3:]
+        
+        return {
+            "best_times": [
+                {
+                    "hour": f"{hour:02d}:00 UTC",
+                    "avg_price": round(price, 6),
+                    "savings_vs_peak": round(((avoid_hours[0][1] - price) / avoid_hours[0][1] * 100), 1)
+                }
+                for hour, price in best_hours
+            ],
+            "avoid_times": [
+                {
+                    "hour": f"{hour:02d}:00 UTC",
+                    "avg_price": round(price, 6)
+                }
+                for hour, price in avoid_hours
+            ],
+            "data_quality": "real",
+            "recommendation": f"Launch spot instances at {best_hours[0][0]:02d}:00 UTC for lowest prices"
         }

@@ -160,6 +160,44 @@ class CloudPricing(Base):
         return f"<CloudPricing({self.provider}:{self.instance_type}@{self.region}: ${self.hourly_price}/hr)>"
 
 
+class SpotPriceHistory(Base):
+    """
+    Historical spot/preemptible pricing data.
+    Collected hourly for real-time trend analysis.
+    """
+    
+    __tablename__ = "spot_price_history"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    
+    # Provider & Instance
+    provider: Mapped[str] = mapped_column(String(10), index=True)
+    instance_type: Mapped[str] = mapped_column(String(100), index=True)
+    
+    # Region/Zone
+    region: Mapped[str] = mapped_column(String(50), index=True)
+    zone: Mapped[Optional[str]] = mapped_column(String(60))
+    
+    # Spot Price (at this point in time)
+    spot_price: Mapped[Decimal] = mapped_column(Numeric(10, 6))
+    
+    # Operating System
+    os_type: Mapped[str] = mapped_column(String(20), default="linux")
+    
+    # Timestamp (when this price was collected)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        Index("idx_spot_history_lookup", "provider", "instance_type", "region", "timestamp"),
+        Index("idx_spot_history_instance", "provider", "instance_type"),
+        Index("idx_spot_history_timestamp", "timestamp"),
+    )
+    
+    def __repr__(self) -> str:
+        return f"<SpotPriceHistory({self.provider}:{self.instance_type}@{self.region}: ${self.spot_price}/hr @ {self.timestamp})>"
+
+
 # GCP Region mappings
 GCP_REGIONS = [
     "us-central1", "us-east1", "us-east4", "us-west1", "us-west2", "us-west3", "us-west4",

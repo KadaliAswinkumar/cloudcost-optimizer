@@ -1,27 +1,52 @@
-# Render.com deployment configuration for CloudCost Optimizer Backend
 services:
-  # FastAPI Backend API
+  # Main API Service
   - type: web
     name: cloudcost-api
-    runtime: docker
-    dockerfilePath: ./Dockerfile
-    plan: free
-    healthCheckPath: /health
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "alembic upgrade head && (python scripts/fetch_real_data.py || echo '⚠️  Data fetch failed') && (python scripts/fetch_real_spot_pricing.py || echo '⚠️  Spot pricing failed') && (python scripts/add_reserved_pricing.py || echo '⚠️  Reserved pricing failed') && uvicorn src.api.main:app --host 0.0.0.0 --port $PORT"
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
       - key: DATABASE_URL
         fromDatabase:
           name: cloudcost-db
           property: connectionString
-      - key: APP_ENV
-        value: production
-      - key: DEBUG
-        value: false
-      - key: ALLOWED_ORIGINS
-        value: https://kadaliaswinkumar.github.io
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: cloudcost-redis
+          property: connectionString
+      - key: GROQ_API_KEY
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+
+  # Hourly Spot Price Collection Job
+  - type: cron
+    name: spot-price-collector
+    env: python
+    schedule: "0 * * * *"  # Every hour at :00
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python scripts/collect_spot_prices_hourly.py"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cloudcost-db
+          property: connectionString
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
 
 databases:
-  # PostgreSQL Database (Free tier)
   - name: cloudcost-db
     databaseName: cloudcost
     user: cloudcost
-    plan: free
+
+  - name: cloudcost-redis
+    type: redis
