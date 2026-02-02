@@ -17,43 +17,45 @@ depends_on = None
 
 
 def upgrade():
-    # Create spot_price_history table
-    op.create_table(
-        'spot_price_history',
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('provider', sa.String(length=10), nullable=False),
-        sa.Column('instance_type', sa.String(length=100), nullable=False),
-        sa.Column('region', sa.String(length=50), nullable=False),
-        sa.Column('zone', sa.String(length=60), nullable=True),
-        sa.Column('spot_price', sa.Numeric(precision=10, scale=6), nullable=False),
-        sa.Column('os_type', sa.String(length=20), nullable=False, server_default='linux'),
-        sa.Column('timestamp', sa.DateTime(), nullable=False),
-        sa.Column('created_at', sa.DateTime(), nullable=False),
-        sa.PrimaryKeyConstraint('id')
-    )
+    # Create spot_price_history table (idempotent - uses IF NOT EXISTS)
+    # Use raw SQL to support IF NOT EXISTS
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS spot_price_history (
+            id SERIAL NOT NULL PRIMARY KEY,
+            provider VARCHAR(10) NOT NULL,
+            instance_type VARCHAR(100) NOT NULL,
+            region VARCHAR(50) NOT NULL,
+            zone VARCHAR(60),
+            spot_price NUMERIC(10, 6) NOT NULL,
+            os_type VARCHAR(20) DEFAULT 'linux' NOT NULL,
+            timestamp TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+            created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+        )
+    """)
     
-    # Create indexes for fast queries
-    op.create_index(
-        'idx_spot_history_lookup',
-        'spot_price_history',
-        ['provider', 'instance_type', 'region', 'timestamp']
-    )
+    # Create indexes for fast queries (idempotent - uses IF NOT EXISTS)
+    op.execute("""
+        CREATE INDEX IF NOT EXISTS idx_spot_history_lookup 
+        ON spot_price_history (provider, instance_type, region, timestamp)
+    """)
     
-    op.create_index(
-        'idx_spot_history_timestamp',
-        'spot_price_history',
-        ['timestamp']
-    )
+    op.execute("""
+        CREATE INDEX IF NOT EXISTS idx_spot_history_timestamp 
+        ON spot_price_history (timestamp)
+    """)
     
-    op.create_index(
-        'idx_spot_history_instance',
-        'spot_price_history',
-        ['provider', 'instance_type']
-    )
+    op.execute("""
+        CREATE INDEX IF NOT EXISTS idx_spot_history_instance 
+        ON spot_price_history (provider, instance_type)
+    """)
+    
+    print("✅ spot_price_history table and indexes created (or already exist)")
 
 
 def downgrade():
-    op.drop_index('idx_spot_history_instance', table_name='spot_price_history')
-    op.drop_index('idx_spot_history_timestamp', table_name='spot_price_history')
-    op.drop_index('idx_spot_history_lookup', table_name='spot_price_history')
-    op.drop_table('spot_price_history')
+    # Drop indexes and table (idempotent - uses IF EXISTS)
+    op.execute("DROP INDEX IF EXISTS idx_spot_history_instance")
+    op.execute("DROP INDEX IF EXISTS idx_spot_history_timestamp")
+    op.execute("DROP INDEX IF EXISTS idx_spot_history_lookup")
+    op.execute("DROP TABLE IF EXISTS spot_price_history")
+    print("✅ spot_price_history table and indexes dropped (if they existed)")
