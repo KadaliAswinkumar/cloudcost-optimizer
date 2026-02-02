@@ -74,6 +74,11 @@ async def fetch_aws_real_spot_prices() -> List[Dict]:
                 )
                 
                 for item in response.get('SpotPriceHistory', []):
+                    # Convert timezone-aware datetime to naive UTC datetime
+                    timestamp = item['Timestamp']
+                    if timestamp.tzinfo is not None:
+                        timestamp = timestamp.replace(tzinfo=None)
+                    
                     spot_prices.append({
                         'provider': 'aws',
                         'instance_type': item['InstanceType'],
@@ -84,7 +89,7 @@ async def fetch_aws_real_spot_prices() -> List[Dict]:
                         'hourly_price': Decimal(item['SpotPrice']),
                         'monthly_price': Decimal(item['SpotPrice']) * 730,
                         'currency': 'USD',
-                        'effective_date': item['Timestamp'],
+                        'effective_date': timestamp,
                         'source': 'AWS API (Real)'
                     })
                 
@@ -101,6 +106,11 @@ async def fetch_aws_real_spot_prices() -> List[Dict]:
                             StartTime=datetime.utcnow() - timedelta(hours=1)
                         )
                         for item in response.get('SpotPriceHistory', []):
+                            # Convert timezone-aware datetime to naive UTC datetime
+                            timestamp = item['Timestamp']
+                            if timestamp.tzinfo is not None:
+                                timestamp = timestamp.replace(tzinfo=None)
+                            
                             spot_prices.append({
                                 'provider': 'aws',
                                 'instance_type': item['InstanceType'],
@@ -111,7 +121,7 @@ async def fetch_aws_real_spot_prices() -> List[Dict]:
                                 'hourly_price': Decimal(item['SpotPrice']),
                                 'monthly_price': Decimal(item['SpotPrice']) * 730,
                                 'currency': 'USD',
-                                'effective_date': item['Timestamp'],
+                                'effective_date': timestamp,
                                 'source': 'AWS API (Real)'
                             })
                 
