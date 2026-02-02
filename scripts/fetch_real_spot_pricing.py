@@ -409,9 +409,16 @@ async def main():
 
 
 if __name__ == "__main__":
+    print("\n🚀 STARTING SPOT PRICING SCRIPT...")
     try:
         exit_code = asyncio.run(main())
         sys.exit(exit_code)
     except Exception as e:
-        logger.error(f"Fatal error: {e}")
+        print(f"\n❌ SPOT PRICING SCRIPT FAILED:")
+        print(f"   Error: {e}")
+        print(f"   Type: {type(e).__name__}")
+        import traceback
+        print(f"\n📋 Full traceback:")
+        traceback.print_exc()
+        print(f"\n⚠️  Continuing without spot pricing data...")
         sys.exit(0)  # Don't fail deployment
