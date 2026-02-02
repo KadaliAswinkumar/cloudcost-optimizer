@@ -115,7 +115,19 @@ A production-ready full-stack application that helps you find the most cost-effe
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### 🎯 DEPLOYMENT OPTIONS
+
+**⭐ Recommended**: **Fly.io** (100% FREE!)
+- **Quick Setup**: See [QUICK_START_FLYIO.md](./QUICK_START_FLYIO.md) (30 mins)
+- **Full Guide**: See [FLY_IO_MIGRATION.md](./FLY_IO_MIGRATION.md)
+- **Cost**: $0/month (within free tier)
+- **Includes**: API + Database + Cron Jobs
+
+**Alternative**: Render (Database costs $7/month)
+
+---
+
+### Prerequisites (for local development)
 
 - Python 3.11+
 - Node.js 18+
