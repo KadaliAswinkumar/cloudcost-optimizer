@@ -7,8 +7,15 @@ Fetches live pricing from AWS, GCP, and Azure APIs
 import asyncio
 import logging
 import sys
+from pathlib import Path
 from datetime import datetime
 from typing import List, Dict
+
+# Add project root to path so we can import src modules
+# This handles the case where script is run from /opt/render/project/src
+project_root = Path(__file__).resolve().parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 # Setup logging
 logging.basicConfig(
