@@ -12,11 +12,6 @@ services:
         fromDatabase:
           name: cloudcost-db
           property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: cloudcost-redis
-          property: connectionString
       - key: GROQ_API_KEY
         sync: false
       - key: AWS_ACCESS_KEY_ID
@@ -47,6 +42,3 @@ databases:
   - name: cloudcost-db
     databaseName: cloudcost
     user: cloudcost
-
-  - name: cloudcost-redis
-    type: redis
