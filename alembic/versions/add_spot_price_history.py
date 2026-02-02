@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'add_spot_price_history'
-down_revision = None  # Update this with your latest migration
+down_revision = '57139d6d9aca'  # Points to: add_indexes_for_performance_optimization
 branch_labels = None
 depends_on = None
 
