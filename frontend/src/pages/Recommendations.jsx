@@ -329,13 +329,15 @@ export default function Recommendations() {
                           )}
                         </div>
                         <p className="text-2xl font-bold text-white">
-                          {data?.cheapest_monthly > 0 
+                          {data?.cheapest_monthly != null && data.cheapest_monthly > 0
                             ? `$${data.cheapest_monthly.toFixed(0)}` 
-                            : <span className="text-slate-500 text-lg">N/A</span>
+                            : <span className="text-slate-500 text-lg italic">N/A</span>
                           }
                         </p>
                         <p className="text-xs text-slate-400">
-                          {data?.cheapest_monthly > 0 ? 'per month' : 'Pricing unavailable'}
+                          {data?.cheapest_monthly != null && data.cheapest_monthly > 0 
+                            ? 'per month' 
+                            : 'Pricing unavailable'}
                         </p>
                       </div>
                     )

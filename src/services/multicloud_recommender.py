@@ -314,11 +314,11 @@ class MultiCloudRecommender:
                 continue
             
             on_demand = pricing.get("on_demand")
-            if not on_demand:
-                continue
             
-            # Apply budget filter
-            if requirements.max_hourly_cost:
+            # FIX: Don't skip instances without on-demand pricing
+            # Allow them through so we can show "N/A" in the frontend
+            # Only apply budget filter if we have pricing
+            if on_demand and requirements.max_hourly_cost:
                 if float(on_demand.hourly_price) > requirements.max_hourly_cost:
                     continue
             
@@ -326,11 +326,13 @@ class MultiCloudRecommender:
             reserved_1yr = pricing.get("reserved_1yr") or pricing.get("committed_1yr")
             reserved_3yr = pricing.get("reserved_3yr") or pricing.get("committed_3yr")
             
+            # FIX: Include candidates even if they don't have pricing
+            # This ensures ALL providers show up, not just those with pricing
             candidates.append({
                 "provider": provider,
                 "instance": instance,
                 "region": region,
-                "on_demand": on_demand,
+                "on_demand": on_demand,  # Can be None
                 "spot": spot,
                 "reserved_1yr": reserved_1yr,
                 "reserved_3yr": reserved_3yr,
@@ -367,6 +369,24 @@ class MultiCloudRecommender:
             spot = candidate["spot"]
             reserved_1yr = candidate["reserved_1yr"]
             provider = candidate["provider"]
+            
+            # FIX: Handle missing pricing gracefully
+            if not on_demand:
+                # No pricing available - still include but with lower score
+                # This ensures all providers show up, with "N/A" pricing
+                scored.append({
+                    **candidate,
+                    "best_price": None,
+                    "strategy": "on_demand",
+                    "monthly_cost": None,
+                    "cost_score": 0,  # Lowest score for missing pricing
+                    "fit_score": self._calculate_fit_score(instance, requirements),
+                    "perf_score": self._calculate_performance_score(instance),
+                    "risk_score": 100,
+                    "interruption_risk": None,
+                    "score": 0,  # Lowest score so it appears last
+                })
+                continue
             
             # Determine best pricing strategy
             interruption_risk = None

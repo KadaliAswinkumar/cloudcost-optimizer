@@ -99,9 +99,9 @@ export default function RecommendationCard({ recommendation, rank, onClick }) {
               <div className="flex items-center gap-2">
                 <DollarSign className="w-4 h-4 text-slate-400" />
                 <span className="text-sm text-slate-300">
-                  {pricing?.monthly_cost > 0 
+                  {pricing?.monthly_cost != null && pricing.monthly_cost > 0
                     ? `$${pricing.monthly_cost.toFixed(2)}/mo` 
-                    : <span className="text-slate-500">N/A</span>
+                    : <span className="text-slate-500 italic">Pricing unavailable</span>
                   }
                 </span>
               </div>
