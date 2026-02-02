@@ -79,6 +79,7 @@ class CloudInstance(Base):
     __table_args__ = (
         UniqueConstraint("provider", "instance_type", name="uq_cloud_instance"),
         Index("idx_cloud_instance_specs", "provider", "vcpus", "memory_gb"),
+        {"extend_existing": True},  # Allow Alembic to extend existing table
     )
     
     def __repr__(self) -> str:
@@ -154,6 +155,7 @@ class CloudPricing(Base):
             name="uq_cloud_pricing"
         ),
         Index("idx_cloud_pricing_lookup", "provider", "instance_type", "region"),
+        {"extend_existing": True},  # Allow Alembic to extend existing table
     )
     
     def __repr__(self) -> str:
@@ -192,6 +194,7 @@ class SpotPriceHistory(Base):
         Index("idx_spot_history_lookup", "provider", "instance_type", "region", "timestamp"),
         Index("idx_spot_history_instance", "provider", "instance_type"),
         Index("idx_spot_history_timestamp", "timestamp"),
+        {"extend_existing": True},  # Allow Alembic to extend existing table
     )
     
     def __repr__(self) -> str:
