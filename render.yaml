@@ -24,11 +24,11 @@ services:
       - key: AWS_SECRET_ACCESS_KEY
         sync: false
 
-  # Hourly Spot Price Collection Job
+  # Weekly Spot Price Collection Job
   - type: cron
     name: spot-price-collector
     env: python
-    schedule: "0 * * * *"  # Every hour at :00
+    schedule: "0 0 * * 0"  # Every Sunday at midnight UTC (Weekly)
     buildCommand: "pip install -r requirements.txt"
     startCommand: "python scripts/collect_spot_prices_hourly.py"
     envVars:

@@ -47,25 +47,28 @@ CREATE INDEX idx_spot_history_instance ON spot_price_history(provider, instance_
 
 ---
 
-## ⏰ **HOURLY COLLECTION SYSTEM**
+## ⏰ **WEEKLY COLLECTION SYSTEM**
 
 ### **Script**: `scripts/collect_spot_prices_hourly.py`
 
 **What it does**:
 1. **Collects current spot prices** from AWS, GCP, Azure APIs
 2. **Stores them** in `spot_price_history` table
-3. **Runs every hour** via Render Cron Job
+3. **Runs every Sunday at midnight UTC** via Render Cron Job OR GitHub Actions
 4. **Auto-cleans** data older than 90 days
 
 ### **Collection Frequency**:
 ```
 ┌─────────────┬─────────────┬─────────────┬─────────────┐
-│  :00 Hours  │  :00 Hours  │  :00 Hours  │  :00 Hours  │
+│   Sunday    │   Sunday    │   Sunday    │   Sunday    │
+│  Midnight   │  Midnight   │  Midnight   │  Midnight   │
 │   Collect   │   Collect   │   Collect   │   Collect   │
 │    Spot     │    Spot     │    Spot     │    Spot     │
 │   Prices    │   Prices    │   Prices    │   Prices    │
 └─────────────┴─────────────┴─────────────┴─────────────┘
-     Hour 1        Hour 2        Hour 3        Hour 4
+    Week 1        Week 2        Week 3        Week 4
+
+⭐ WEEKLY = Perfect for historical trends + FREE tier friendly!
 ```
 
 ### **Data Sources**:
@@ -77,34 +80,34 @@ CREATE INDEX idx_spot_history_instance ON spot_price_history(provider, instance_
 
 ## 📊 **HOW IT WORKS**
 
-### **Day 1** (First Collection):
+### **Week 1** (First Collection):
 ```
 User visits Spot Intelligence → "Data collection in progress"
-Message: "Real-time spot prices shown, historical charts available after 24 hours"
+Message: "Real-time spot prices shown, historical trends available after a few weeks"
 ```
 
-### **Day 2** (After 24 hours):
+### **Week 4** (After 1 month):
 ```
-User visits → Sees 24-hour chart with REAL data
-✅ Actual price trends
+User visits → Sees 4-week data points with REAL data
+✅ Monthly trends
 ✅ Real volatility calculations
-✅ Genuine interruption patterns
+✅ Genuine price patterns
 ```
 
-### **Day 7** (After 1 week):
+### **Week 12** (After 3 months):
 ```
-User visits → Sees 7-day chart
-✅ Weekly patterns (weekday vs weekend)
-✅ Best launch times (based on real cheapest hours)
-✅ Real interruption frequency
+User visits → Sees quarterly trends
+✅ Seasonal patterns
+✅ Best launch times (based on real historical data)
+✅ Real interruption frequency patterns
 ```
 
-### **Day 30** (After 1 month):
+### **Week 24+** (After 6 months):
 ```
 User visits → FULL professional analysis
-✅ 30-day price history
-✅ Real volatility trends
-✅ Accurate interruption predictions
+✅ Long-term price history with meaningful trends
+✅ Real volatility patterns
+✅ Accurate seasonal variations
 ✅ Data-driven launch recommendations
 ```
 
@@ -119,24 +122,27 @@ alembic upgrade head
 
 This creates the `spot_price_history` table.
 
-### **2. Set Up Render Cron Job**
+### **2. Set Up Weekly Collection**
 
 The `render.yaml` file defines:
 
 ```yaml
 services:
-  # Hourly Spot Price Collection Job
+  # Weekly Spot Price Collection Job
   - type: cron
     name: spot-price-collector
-    schedule: "0 * * * *"  # Every hour
+    schedule: "0 0 * * 0"  # Every Sunday at midnight UTC
     startCommand: "python scripts/collect_spot_prices_hourly.py"
 ```
 
 **Render automatically**:
-- ✅ Runs the script every hour
+- ✅ Runs the script every Sunday at midnight
 - ✅ Uses same DATABASE_URL as main app
 - ✅ Logs each collection run
 - ✅ Handles failures gracefully
+- ✅ **FREE tier friendly** (only 4 runs/month vs 730!)
+
+**Alternative**: GitHub Actions (also runs weekly, see `.github/workflows/collect-spot-prices.yml`)
 
 ### **3. Add AWS Credentials** (Optional, for AWS data)
 
@@ -163,27 +169,29 @@ AWS_SECRET_ACCESS_KEY=your_secret
 │ We're building your historical price data!   │
 │                                              │
 │ • Real-time spot prices shown ✅             │
-│ • Historical charts: Available in 24 hours  │
+│ • Historical trends: Available in a few weeks│
 │ • 100% real data, no simulation ✅           │
+│ • Weekly collection (FREE tier optimized)   │
 │                                              │
-│ Check back tomorrow for full analysis!       │
+│ Check back in a few weeks for full analysis! │
 └─────────────────────────────────────────────┘
 ```
 
-### **With Historical Data**:
+### **With Historical Data** (After several weeks):
 ```
 ┌─────────────────────────────────────────────┐
-│ 📊 30-Day Spot Price History                │
+│ 📊 12-Week Spot Price History               │
 │                                              │
 │  [Beautiful Recharts line chart]            │
 │                                              │
-│ Data Quality: ✅ 100% Real (720 data points)│
-│ Collected Since: Jan 3, 2026                 │
+│ Data Quality: ✅ 100% Real (12 data points) │
+│ Collected Since: Nov 10, 2025                │
 │                                              │
 │ Average: $0.0432/hr                          │
-│ Min: $0.0312/hr (Sun 2AM)                    │
-│ Max: $0.0891/hr (Mon 3PM)                    │
+│ Min: $0.0312/hr (Week of Dec 15)            │
+│ Max: $0.0891/hr (Week of Jan 5)             │
 │ Volatility: 14.2% (Low Risk)                 │
+│ Trend: Stable with minor seasonal variation  │
 └─────────────────────────────────────────────┘
 ```
 
