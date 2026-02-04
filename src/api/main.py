@@ -26,6 +26,7 @@ from src.api.routes import (
 from src.api.routes.multicloud import router as multicloud_router
 from src.api.routes.ai import router as ai_router
 from src.api.routes.spot_intelligence import router as spot_intelligence_router
+from src.api.routes.debug import router as debug_router
 
 # Configure logging
 logging.basicConfig(
@@ -139,6 +140,7 @@ app.include_router(recommendations_router, prefix="/api/v1")
 app.include_router(multicloud_router, prefix="/api/v1")
 app.include_router(ai_router, prefix="/api/v1")  # CloudCost AI™
 app.include_router(spot_intelligence_router, prefix="/api/v1")  # Spot Intelligence™ - FIX: Changed from /api/v1/spot-intelligence
+app.include_router(debug_router, prefix="/api/v1")  # Debug endpoints (temporary)
 
 
 # Root endpoint
