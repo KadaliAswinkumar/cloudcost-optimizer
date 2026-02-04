@@ -350,21 +350,48 @@ Recommended platforms:
 cloudcost-optimizer/
 ├── frontend/              # React frontend application
 │   ├── src/
-│   │   ├── pages/        # Dashboard, Recommendations, etc.
-│   │   ├── components/   # Reusable UI components
-│   │   └── api/          # API client
+│   │   ├── pages/        # Dashboard, Instance Finder, Spot Intelligence, CloudCost AI
+│   │   ├── components/   # Reusable UI components (Layout, Cards, Charts)
+│   │   └── api/          # API client for backend communication
 │   ├── package.json
 │   └── vite.config.js
-├── src/                  # Backend application
-│   ├── api/              # FastAPI routes
+│
+├── src/                   # Backend FastAPI application
+│   ├── api/
+│   │   ├── routes/       # API endpoints (multicloud, ai, spot_intelligence, debug)
+│   │   └── middleware/   # Rate limiting, CORS
 │   ├── services/         # Business logic & cloud integrations
-│   ├── models/           # Database models
-│   ├── jobs/             # Celery background tasks
-│   └── core/             # Configuration & utilities
-├── tests/                # Test suite
-├── alembic/              # Database migrations
-├── docker-compose.yml    # Container orchestration
-└── requirements.txt      # Python dependencies
+│   │   ├── *_price_fetcher.py  # AWS, GCP, Azure pricing
+│   │   ├── conversational_ai.py # Groq AI integration
+│   │   └── spot_intelligence.py # Spot analysis engine
+│   ├── models/           # SQLAlchemy database models
+│   ├── jobs/             # Celery background tasks (optional)
+│   ├── core/             # Configuration, database, cache
+│   └── utils/            # Helper functions
+│
+├── scripts/               # Utility and data collection scripts
+│   ├── fetch_real_data.py           # Populate instance database
+│   ├── fetch_real_spot_pricing.py   # Collect spot prices
+│   ├── add_reserved_pricing.py      # Generate reserved pricing
+│   ├── collect_spot_prices_hourly.py # Cron job for historical data
+│   └── test_*.sh                     # Testing utilities
+│
+├── docs/                  # Documentation
+│   ├── SETUP_CRON_JOB.md
+│   ├── SPOT_PRICING_FINAL_FIX.md
+│   ├── CONVERSATIONAL_AI_SETUP.md
+│   └── ...more docs
+│
+├── alembic/               # Database migrations
+│   └── versions/
+│
+├── tests/                 # Test suite
+├── Dockerfile             # Container image definition
+├── docker-compose.yml     # Local development setup
+├── render.yaml            # Render.com deployment config
+├── requirements.txt       # Python dependencies
+├── STRATEGY_TO_WIN.md     # Product strategy & competitive analysis
+└── README.md              # You are here!
 ```
 
 ---
