@@ -151,7 +151,7 @@ class CloudPricing(Base):
     
     __table_args__ = (
         UniqueConstraint(
-            "provider", "instance_type", "region", "pricing_type", "os_type",
+            "provider", "instance_type", "region", "zone", "pricing_type", "os_type",
             name="uq_cloud_pricing"
         ),
         Index("idx_cloud_pricing_lookup", "provider", "instance_type", "region"),
