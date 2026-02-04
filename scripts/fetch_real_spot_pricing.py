@@ -375,24 +375,32 @@ async def main():
     
     stats["total"] = len(all_spot_prices)
     
-    # 3. Bulk insert spot pricing
+    # 3. Bulk insert spot pricing using UPSERT
     if all_spot_prices:
         print(f"\n💾 Inserting {len(all_spot_prices)} spot prices...")
         async with get_db_context() as db:
-            # Insert in batches
-            batch_size = 500
-            for i in range(0, len(all_spot_prices), batch_size):
-                batch = all_spot_prices[i:i + batch_size]
-                
-                for price_data in batch:
-                    # Remove 'source' before creating DB object
-                    source = price_data.pop('source', 'Unknown')
-                    pricing = CloudPricing(**price_data)
-                    db.add(pricing)
-                    logger.debug(f"Added: {pricing.provider} {pricing.instance_type} @ {pricing.region} (Source: {source})")
-                
-                await db.commit()
-                logger.info(f"Inserted batch {i//batch_size + 1} ({len(batch)} prices)")
+            from sqlalchemy.dialects.postgresql import insert
+            
+            # Remove 'source' field from all price data (not in DB schema)
+            for price in all_spot_prices:
+                price.pop('source', None)
+            
+            # Use UPSERT to handle duplicates gracefully
+            # If a record exists with the same unique key, update it instead of failing
+            stmt = insert(CloudPricing).values(all_spot_prices)
+            stmt = stmt.on_conflict_do_update(
+                constraint='uq_cloud_pricing',  # The unique constraint name
+                set_={
+                    'hourly_price': stmt.excluded.hourly_price,
+                    'monthly_price': stmt.excluded.monthly_price,
+                    'effective_date': stmt.excluded.effective_date,
+                    'updated_at': stmt.excluded.updated_at,
+                }
+            )
+            
+            await db.execute(stmt)
+            await db.commit()
+            logger.info(f"✅ Upserted {len(all_spot_prices)} spot prices (inserted new + updated existing)")
     
     print("\n" + "="*70)
     print("✅ REAL SPOT PRICING FETCH COMPLETE")
