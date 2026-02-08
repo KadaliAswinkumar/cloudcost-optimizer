@@ -384,23 +384,45 @@ async def main():
             # Remove 'source' field from all price data (not in DB schema)
             for price in all_spot_prices:
                 price.pop('source', None)
+                # Ensure created_at and updated_at are set
+                if 'created_at' not in price:
+                    price['created_at'] = datetime.utcnow()
+                if 'updated_at' not in price:
+                    price['updated_at'] = datetime.utcnow()
             
-            # Use UPSERT to handle duplicates gracefully
-            # If a record exists with the same unique key, update it instead of failing
-            stmt = insert(CloudPricing).values(all_spot_prices)
-            stmt = stmt.on_conflict_do_update(
-                constraint='uq_cloud_pricing',  # The unique constraint name
-                set_={
-                    'hourly_price': stmt.excluded.hourly_price,
-                    'monthly_price': stmt.excluded.monthly_price,
-                    'effective_date': stmt.excluded.effective_date,
-                    'updated_at': stmt.excluded.updated_at,
-                }
-            )
-            
-            await db.execute(stmt)
-            await db.commit()
-            logger.info(f"✅ Upserted {len(all_spot_prices)} spot prices (inserted new + updated existing)")
+            try:
+                # Use UPSERT to handle duplicates gracefully
+                # The unique constraint is: provider, instance_type, region, zone, pricing_type, os_type
+                stmt = insert(CloudPricing).values(all_spot_prices)
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=['provider', 'instance_type', 'region', 'zone', 'pricing_type', 'os_type'],
+                    set_={
+                        'hourly_price': stmt.excluded.hourly_price,
+                        'monthly_price': stmt.excluded.monthly_price,
+                        'effective_date': stmt.excluded.effective_date,
+                        'updated_at': stmt.excluded.updated_at,
+                    }
+                )
+                
+                await db.execute(stmt)
+                await db.commit()
+                logger.info(f"✅ Upserted {len(all_spot_prices)} spot prices into cloud_pricing table")
+                
+                # Verify insertion
+                from sqlalchemy import func, select
+                result = await db.execute(
+                    select(func.count()).select_from(CloudPricing).where(
+                        CloudPricing.pricing_type.in_(['spot', 'preemptible'])
+                    )
+                )
+                total_spot = result.scalar()
+                logger.info(f"✅ Verified: {total_spot} total spot prices now in cloud_pricing table")
+                
+            except Exception as e:
+                logger.error(f"❌ Failed to insert spot prices: {e}")
+                import traceback
+                traceback.print_exc()
+                raise
     
     print("\n" + "="*70)
     print("✅ REAL SPOT PRICING FETCH COMPLETE")
@@ -423,16 +445,33 @@ async def main():
 
 
 if __name__ == "__main__":
-    print("\n🚀 STARTING SPOT PRICING SCRIPT...")
+    print("\n" + "="*70)
+    print("🚀 STARTING SPOT PRICING SCRIPT")
+    print("="*70)
+    print(f"   Time: {datetime.utcnow().isoformat()}")
+    print(f"   Python: {sys.version.split()[0]}")
+    print("="*70 + "\n")
+    
     try:
         exit_code = asyncio.run(main())
+        print(f"\n✅ Spot pricing script completed with exit code: {exit_code}")
         sys.exit(exit_code)
+    except KeyboardInterrupt:
+        print("\n⚠️  Script interrupted by user")
+        sys.exit(1)
     except Exception as e:
-        print(f"\n❌ SPOT PRICING SCRIPT FAILED:")
+        print(f"\n" + "="*70)
+        print(f"❌ SPOT PRICING SCRIPT FAILED")
+        print("="*70)
         print(f"   Error: {e}")
         print(f"   Type: {type(e).__name__}")
         import traceback
         print(f"\n📋 Full traceback:")
         traceback.print_exc()
-        print(f"\n⚠️  Continuing without spot pricing data...")
-        sys.exit(0)  # Don't fail deployment
+        print("="*70)
+        print(f"⚠️  Spot pricing data NOT loaded.")
+        print(f"   The API will start but Spot Intelligence will not work.")
+        print("="*70 + "\n")
+        # Exit with 0 so deployment continues (spot pricing is optional)
+        # But the logs will clearly show the failure
+        sys.exit(0)
