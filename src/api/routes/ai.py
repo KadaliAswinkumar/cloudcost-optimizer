@@ -4,7 +4,6 @@ AI-powered instance recommendations + Conversational AI
 """
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional, Literal, Dict
 from sqlalchemy.ext.asyncio import AsyncSession

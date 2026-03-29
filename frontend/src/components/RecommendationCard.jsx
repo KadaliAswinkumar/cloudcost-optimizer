@@ -1,6 +1,6 @@
 import { clsx } from 'clsx'
 import { useState } from 'react'
-import { Award, Cpu, MemoryStick, DollarSign, Zap, ChevronRight, ChevronDown, AlertTriangle, Shield, Clock, Info } from 'lucide-react'
+import { Cpu, MemoryStick, DollarSign, Zap, ChevronRight, ChevronDown, Shield, Clock, Info } from 'lucide-react'
 import CloudBadge from './CloudBadge'
 
 export default function RecommendationCard({ recommendation, rank, onClick }) {

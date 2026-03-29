@@ -1,5 +1,11 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext'
 import Layout from './components/Layout'
+import ErrorBoundary from './components/ErrorBoundary'
+import ProtectedRoute from './components/ProtectedRoute'
+import Landing from './pages/Landing'
+import Login from './pages/Login'
+import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
 import Recommendations from './pages/Recommendations'
 import InstanceFinder from './pages/InstanceFinder'
@@ -10,19 +16,71 @@ import SpotIntelligence from './pages/SpotIntelligence'
 
 function App() {
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/ai" element={<CloudCostAI />} />
-        <Route path="/spot-intelligence" element={<SpotIntelligence />} />
-        <Route path="/recommendations" element={<Recommendations />} />
-        <Route path="/instances" element={<InstanceFinder />} />
-        <Route path="/compare" element={<PriceComparison />} />
-        <Route path="/calculator" element={<CostCalculator />} />
-      </Routes>
-    </Layout>
+    <ErrorBoundary>
+      <AuthProvider>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          
+          {/* Protected Routes - All inside Layout */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Layout>
+                <Dashboard />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/ai" element={
+            <ProtectedRoute>
+              <Layout>
+                <CloudCostAI />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/spot-intelligence" element={
+            <ProtectedRoute>
+              <Layout>
+                <SpotIntelligence />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/recommendations" element={
+            <ProtectedRoute>
+              <Layout>
+                <Recommendations />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/instances" element={
+            <ProtectedRoute>
+              <Layout>
+                <InstanceFinder />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/compare" element={
+            <ProtectedRoute>
+              <Layout>
+                <PriceComparison />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/calculator" element={
+            <ProtectedRoute>
+              <Layout>
+                <CostCalculator />
+              </Layout>
+            </ProtectedRoute>
+          } />
+
+          {/* Catch all - redirect to landing */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
+    </ErrorBoundary>
   )
 }
 
 export default App
-

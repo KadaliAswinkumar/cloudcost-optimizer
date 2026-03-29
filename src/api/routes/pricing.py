@@ -10,8 +10,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
-from src.core.cache import cache_service, CacheKeys
-from src.models.pricing import OnDemandPricing, SpotPricing, SpotPriceHistory
+from src.models.pricing import OnDemandPricing, SpotPricing
+from src.models.cloud_provider import SpotPriceHistory
 from src.services.cost_calculator import CostCalculator
 from src.services.spot_price_tracker import SpotPriceTracker
 
@@ -150,8 +150,9 @@ async def get_spot_price_history(
     since = datetime.utcnow() - timedelta(days=days)
     
     query = select(SpotPriceHistory).where(
+        SpotPriceHistory.provider == "aws",
         SpotPriceHistory.instance_type == instance_type,
-        SpotPriceHistory.availability_zone == availability_zone,
+        SpotPriceHistory.zone == availability_zone,
         SpotPriceHistory.timestamp >= since,
     ).order_by(SpotPriceHistory.timestamp)
     

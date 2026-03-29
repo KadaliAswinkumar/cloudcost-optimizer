@@ -8,7 +8,8 @@ export default function StatsCard({
   trend, 
   trendValue, 
   icon: Icon,
-  className 
+  className,
+  style
 }) {
   const getTrendIcon = () => {
     if (!trend) return null
@@ -24,10 +25,13 @@ export default function StatsCard({
   }
 
   return (
-    <div className={clsx(
-      'glass-card p-6 relative overflow-hidden group card-hover',
-      className
-    )}>
+    <div 
+      className={clsx(
+        'glass-card p-6 relative overflow-hidden group card-hover',
+        className
+      )}
+      style={style}
+    >
       {/* Background decoration */}
       <div className="absolute -right-4 -top-4 w-24 h-24 bg-gradient-to-br from-primary-500/10 to-purple-500/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
       

@@ -15,7 +15,7 @@ import {
   Calendar,
   Target
 } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts'
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts'
 import CloudBadge from '../components/CloudBadge'
 import { api } from '../api/client'
 
@@ -44,7 +44,7 @@ export default function SpotIntelligence() {
         hours_per_month: parseInt(formData.hours_per_month)
       })
       
-      setAnalysis(response)
+      setAnalysis(response.data)
     } catch (err) {
       console.error('Error analyzing spot instance:', err)
       setError(err.response?.data?.detail || 'Failed to analyze spot instance')

@@ -16,7 +16,10 @@ class Settings(BaseSettings):
     app_name: str = Field(default="CloudCost Optimizer", env="APP_NAME")
     app_env: str = Field(default="development", env="APP_ENV")
     debug: bool = Field(default=True, env="DEBUG")
-    secret_key: str = Field(default="change-me-in-production", env="SECRET_KEY")
+    secret_key: str = Field(
+        default="dev-secret-key-CHANGE-IN-PRODUCTION", 
+        env="SECRET_KEY"
+    )
     
     # Server
     host: str = Field(default="0.0.0.0", env="HOST")
@@ -60,6 +63,12 @@ class Settings(BaseSettings):
     # Rate Limiting
     rate_limit_requests: int = Field(default=100, env="RATE_LIMIT_REQUESTS")
     rate_limit_window: int = Field(default=60, env="RATE_LIMIT_WINDOW")
+    
+    # CORS
+    cors_origins: List[str] = Field(
+        default=["http://localhost:5173", "http://localhost:3000"],
+        env="CORS_ORIGINS"
+    )
     
     # Logging
     log_level: str = Field(default="INFO", env="LOG_LEVEL")

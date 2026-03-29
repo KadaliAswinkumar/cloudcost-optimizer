@@ -99,7 +99,7 @@ export default function Dashboard() {
       icon: Shield,
       title: 'Spot Analysis',
       description: 'Track spot prices and interruption risks',
-      link: '/calculator',
+      link: '/spot-intelligence',
       color: 'from-orange-500 to-amber-500',
     },
   ]

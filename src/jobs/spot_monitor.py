@@ -17,7 +17,8 @@ from src.jobs.celery_app import celery_app
 from src.core.config import settings
 from src.core.database import get_db_context
 from src.services.aws_price_fetcher import AWSPriceFetcher
-from src.models.pricing import SpotPricing, SpotPriceHistory
+from src.models.pricing import SpotPricing
+from src.models.cloud_provider import SpotPriceHistory
 
 logger = logging.getLogger(__name__)
 
@@ -143,10 +144,16 @@ async def _update_spot_prices(region: str) -> tuple[int, int]:
             await db.execute(stmt)
             updated += 1
             
-            # Record in history
+            # Record in history (convert AWS format to multi-cloud schema)
+            az = price_data["availability_zone"]
+            region = az[:-1] if az and len(az) > 1 else price_data.get("region", "us-east-1")
+            
             history_stmt = insert(SpotPriceHistory).values(
+                provider="aws",
                 instance_type=price_data["instance_type"],
-                availability_zone=price_data["availability_zone"],
+                region=region,
+                zone=az,
+                os_type="linux",
                 spot_price=price_data["spot_price"],
                 timestamp=price_data["timestamp"],
             )

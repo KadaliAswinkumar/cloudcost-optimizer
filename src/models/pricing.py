@@ -8,7 +8,7 @@ from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy import (
-    String, Integer, Float, DateTime, ForeignKey, 
+    String, Integer, Float, DateTime, 
     Numeric, Index, UniqueConstraint
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -150,27 +150,4 @@ class SpotPricing(Base):
     
     def __repr__(self) -> str:
         return f"<SpotPricing({self.instance_type}@{self.availability_zone}: ${self.spot_price}/hr)>"
-
-
-class SpotPriceHistory(Base):
-    """Historical Spot price data for trend analysis."""
-    
-    __tablename__ = "spot_price_history"
-    
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    
-    # Instance & Region
-    instance_type: Mapped[str] = mapped_column(String(50), index=True)
-    availability_zone: Mapped[str] = mapped_column(String(25), index=True)
-    
-    # Price & Time
-    spot_price: Mapped[Decimal] = mapped_column(Numeric(10, 6))
-    timestamp: Mapped[datetime] = mapped_column(DateTime, index=True)
-    
-    __table_args__ = (
-        Index("idx_spot_history_lookup", "instance_type", "availability_zone", "timestamp"),
-    )
-    
-    def __repr__(self) -> str:
-        return f"<SpotPriceHistory({self.instance_type}@{self.availability_zone}: ${self.spot_price} at {self.timestamp})>"
 

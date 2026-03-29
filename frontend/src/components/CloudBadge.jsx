@@ -52,32 +52,3 @@ export default function CloudBadge({ provider, size = 'md', showIcon = true }) {
   )
 }
 
-export function CloudLogo({ provider, size = 32 }) {
-  const logos = {
-    aws: (
-      <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="8" fill="#FF9900" fillOpacity="0.1"/>
-        <path d="M13.5 20.5c0-2.5 2-4.5 4.5-4.5s4.5 2 4.5 4.5" stroke="#FF9900" strokeWidth="2" strokeLinecap="round"/>
-        <path d="M22.5 20.5c0-2.5 2-4.5 4.5-4.5" stroke="#FF9900" strokeWidth="2" strokeLinecap="round"/>
-        <path d="M10 24h20" stroke="#FF9900" strokeWidth="2" strokeLinecap="round"/>
-      </svg>
-    ),
-    gcp: (
-      <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="8" fill="#4285F4" fillOpacity="0.1"/>
-        <circle cx="20" cy="20" r="8" stroke="#4285F4" strokeWidth="2"/>
-        <path d="M20 12v-2M20 30v-2M28 20h2M10 20h2" stroke="#4285F4" strokeWidth="2" strokeLinecap="round"/>
-      </svg>
-    ),
-    azure: (
-      <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="8" fill="#0078D4" fillOpacity="0.1"/>
-        <path d="M12 28l8-16 4 8-8 8h-4z" fill="#0078D4" fillOpacity="0.5"/>
-        <path d="M20 12l8 16h-12l4-8z" stroke="#0078D4" strokeWidth="2"/>
-      </svg>
-    ),
-  }
-
-  return logos[provider] || logos.aws
-}
-

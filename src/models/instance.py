@@ -5,7 +5,6 @@ Stores AWS EC2 instance specifications and metadata.
 
 from datetime import datetime
 from typing import Optional
-from decimal import Decimal
 
 from sqlalchemy import String, Integer, Float, Boolean, DateTime, Text, Index
 from sqlalchemy.orm import Mapped, mapped_column

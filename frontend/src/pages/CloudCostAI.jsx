@@ -11,6 +11,7 @@ import {
   Copy,
   Check
 } from 'lucide-react'
+import DOMPurify from 'dompurify'
 import { api } from '../api/client'
 
 export default function CloudCostAI() {
@@ -228,18 +229,26 @@ Please try again or rephrase your question.`
                     : 'bg-slate-800/50 border border-slate-700/50 text-slate-200'
                   }
                 `}>
-                  {/* Render markdown-like formatting */}
-                  <div 
-                    className="prose prose-invert prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{
-                      __html: message.content
-                        .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
-                        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                        .replace(/`(.*?)`/g, '<code class="px-1.5 py-0.5 rounded bg-slate-900 text-blue-400 font-mono text-xs">$1</code>')
-                        .replace(/\n\n/g, '<br/><br/>')
-                        .replace(/\n-/g, '<br/>•')
-                    }}
-                  />
+                  {message.role === 'user' ? (
+                    <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap">
+                      {message.content}
+                    </div>
+                  ) : (
+                    <div 
+                      className="prose prose-invert prose-sm max-w-none"
+                      dangerouslySetInnerHTML={{
+                        __html: DOMPurify.sanitize(
+                          message.content
+                            .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
+                            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                            .replace(/`(.*?)`/g, '<code class="px-1.5 py-0.5 rounded bg-slate-900 text-blue-400 font-mono text-xs">$1</code>')
+                            .replace(/\n\n/g, '<br/><br/>')
+                            .replace(/\n-/g, '<br/>•'),
+                          { ALLOWED_TAGS: ['strong', 'em', 'code', 'br'], ALLOWED_ATTR: ['class'] }
+                        )
+                      }}
+                    />
+                  )}
                 </div>
 
                 {/* Copy button for AI messages */}

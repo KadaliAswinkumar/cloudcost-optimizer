@@ -42,11 +42,19 @@ class CacheService:
         return await self.redis.delete(key) > 0
     
     async def delete_pattern(self, pattern: str) -> int:
-        """Delete all keys matching pattern."""
-        keys = await self.redis.keys(pattern)
-        if keys:
-            return await self.redis.delete(*keys)
-        return 0
+        """Delete all keys matching pattern using SCAN."""
+        count = 0
+        cursor = 0
+        
+        while True:
+            cursor, keys = await self.redis.scan(cursor, match=pattern, count=100)
+            if keys:
+                count += await self.redis.delete(*keys)
+            
+            if cursor == 0:
+                break
+        
+        return count
     
     async def exists(self, key: str) -> bool:
         """Check if key exists in cache."""

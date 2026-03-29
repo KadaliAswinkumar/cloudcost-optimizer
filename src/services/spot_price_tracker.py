@@ -13,7 +13,8 @@ import logging
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.pricing import SpotPricing, SpotPriceHistory
+from src.models.pricing import SpotPricing
+from src.models.cloud_provider import SpotPriceHistory
 from src.services.aws_price_fetcher import AWSPriceFetcher
 from src.core.config import settings
 
@@ -105,10 +106,16 @@ class SpotPriceTracker:
             self.db.add(new_price)
     
     async def _record_price_history(self, price_data: Dict) -> None:
-        """Record price in history table."""
+        """Record price in history table (multi-cloud schema)."""
+        az = price_data["availability_zone"]
+        region = az[:-1] if az and len(az) > 1 else price_data.get("region", "us-east-1")
+        
         history_record = SpotPriceHistory(
+            provider="aws",
             instance_type=price_data["instance_type"],
-            availability_zone=price_data["availability_zone"],
+            region=region,
+            zone=az,
+            os_type="linux",
             spot_price=price_data["spot_price"],
             timestamp=price_data["timestamp"],
         )
@@ -134,8 +141,9 @@ class SpotPriceTracker:
         since = datetime.utcnow() - timedelta(days=days)
         
         query = select(SpotPriceHistory).where(
+            SpotPriceHistory.provider == "aws",
             SpotPriceHistory.instance_type == instance_type,
-            SpotPriceHistory.availability_zone == availability_zone,
+            SpotPriceHistory.zone == availability_zone,
             SpotPriceHistory.timestamp >= since,
         ).order_by(SpotPriceHistory.timestamp)
         
@@ -323,16 +331,19 @@ class SpotPriceTracker:
         result = await self.db.execute(query)
         spot_prices = result.scalars().all()
         
+        # Batch fetch risk data for all zones in parallel to avoid N+1
+        risk_tasks = [
+            self.calculate_interruption_risk(instance_type, spot.availability_zone)
+            for spot in spot_prices
+        ]
+        risk_results = await asyncio.gather(*risk_tasks)
+        
         zones_with_scores = []
         
-        for spot in spot_prices:
-            risk_data = await self.calculate_interruption_risk(
-                instance_type, spot.availability_zone
-            )
-            
+        for spot, risk_data in zip(spot_prices, risk_results):
             # Calculate combined score (lower is better)
             # Price normalized (0-50) + Risk (0-50)
-            price_score = float(spot.spot_price) * 10  # Rough normalization
+            price_score = float(spot.spot_price) * 10
             risk_score = risk_data.get("risk_score", 50) / 2
             combined_score = price_score + risk_score
             

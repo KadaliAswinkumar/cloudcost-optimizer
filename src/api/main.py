@@ -104,7 +104,7 @@ instances to provide intelligent recommendations.
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -139,8 +139,12 @@ app.include_router(pricing_router, prefix="/api/v1")
 app.include_router(recommendations_router, prefix="/api/v1")
 app.include_router(multicloud_router, prefix="/api/v1")
 app.include_router(ai_router, prefix="/api/v1")  # CloudCost AI™
-app.include_router(spot_intelligence_router, prefix="/api/v1")  # Spot Intelligence™ - FIX: Changed from /api/v1/spot-intelligence
-app.include_router(debug_router, prefix="/api/v1")  # Debug endpoints (temporary)
+app.include_router(spot_intelligence_router, prefix="/api/v1")  # Spot Intelligence™
+
+# Only include debug endpoints in development mode
+if settings.debug:
+    app.include_router(debug_router, prefix="/api/v1")
+    logger.warning("Debug endpoints enabled - DISABLE IN PRODUCTION")
 
 
 # Root endpoint

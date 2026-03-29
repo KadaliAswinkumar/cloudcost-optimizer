@@ -3,6 +3,7 @@ Recommendation Engine
 Generates intelligent instance recommendations based on workload requirements.
 """
 
+import asyncio
 import hashlib
 import json
 from datetime import datetime, timedelta
@@ -243,29 +244,39 @@ class RecommendationEngine:
         candidates: List[Dict],
         requirements: WorkloadRequirements
     ) -> List[Dict]:
-        """Score candidates based on multiple criteria."""
+        """Score candidates based on multiple criteria (optimized to reduce N+1 queries)."""
         
-        scored = []
+        # Build list of all scoring tasks to run in parallel
+        scoring_tasks = []
+        task_metadata = []
         
         for candidate in candidates:
-            instance = candidate["instance"]
-            on_demand = candidate["on_demand_price"]
-            spot = candidate["spot_price"]
-            
-            # Determine best pricing strategy for this workload
-            strategies = self._get_applicable_strategies(requirements, spot is not None)
+            strategies = self._get_applicable_strategies(
+                requirements, 
+                candidate["spot_price"] is not None
+            )
             
             for strategy in strategies:
-                score_data = await self._calculate_score(
-                    candidate, strategy, requirements
+                scoring_tasks.append(
+                    self._calculate_score(candidate, strategy, requirements)
                 )
-                
-                if score_data:
-                    scored.append({
-                        **candidate,
-                        **score_data,
-                        "strategy": strategy,
-                    })
+                task_metadata.append({
+                    "candidate": candidate,
+                    "strategy": strategy
+                })
+        
+        # Execute all scoring operations in parallel
+        score_results = await asyncio.gather(*scoring_tasks)
+        
+        # Combine results
+        scored = []
+        for metadata, score_data in zip(task_metadata, score_results):
+            if score_data:
+                scored.append({
+                    **metadata["candidate"],
+                    **score_data,
+                    "strategy": metadata["strategy"],
+                })
         
         return scored
     

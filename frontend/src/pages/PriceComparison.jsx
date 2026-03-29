@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { 
   GitCompare, 
-  ArrowRight,
   DollarSign,
   TrendingDown,
   Check,
@@ -287,7 +286,7 @@ export default function PriceComparison() {
             <h3 className="text-lg font-semibold text-white mb-2">Our Recommendation</h3>
             <p className="text-slate-300">
               For <strong>{specs.vcpus} vCPUs and {specs.memory_gb}GB RAM</strong>, 
-              we recommend <CloudBadge provider="gcp" size="sm" /> <strong>e2-standard-4</strong> 
+              we recommend <CloudBadge provider={cheapest.provider} size="sm" /> <strong>{cheapest.instance}</strong> 
               {' '}as the most cost-effective option at <strong>${cheapest.onDemand}/month</strong>.
             </p>
             <p className="text-slate-400 text-sm mt-2">

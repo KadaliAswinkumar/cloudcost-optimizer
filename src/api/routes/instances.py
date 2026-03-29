@@ -9,7 +9,6 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
-from src.core.cache import cache_service, CacheKeys
 from src.models.instance import EC2Instance
 
 router = APIRouter(prefix="/instances", tags=["Instances"])

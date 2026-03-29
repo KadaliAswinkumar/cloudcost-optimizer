@@ -10,7 +10,7 @@ from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
-from src.models.cloud_provider import CloudProvider, CloudInstance, CloudPricing
+from src.models.cloud_provider import CloudInstance, CloudPricing
 from src.services.multicloud_recommender import MultiCloudRecommender, MultiCloudRequirements
 
 router = APIRouter(prefix="/multicloud", tags=["Multi-Cloud"])
@@ -283,7 +283,6 @@ async def list_multicloud_instances(
         # Build a simple query (JOIN was causing issues with async SQLAlchemy)
         # We'll fetch pricing separately if needed
         query = select(CloudInstance)
-        pricing_subquery = None
         
         conditions = []
         

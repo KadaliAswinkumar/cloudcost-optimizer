@@ -58,6 +58,7 @@ export default function Recommendations() {
         providers: formData.providers,
         workload_type: formData.workload_type,
         spot_eligible: formData.spot_eligible,
+        interruption_tolerance: formData.interruption_tolerance,
         hours_per_month: formData.hours_per_month,
       }
       
@@ -66,9 +67,7 @@ export default function Recommendations() {
         requestData.max_monthly_budget = parseFloat(formData.max_monthly_budget)
       }
       
-      console.log('Sending recommendation request:', requestData)
       const response = await api.getMulticloudRecommendations(requestData)
-      console.log('Received recommendations:', response.data)
       
       setRecommendations(response.data)
       setCurrentPage(1) // Reset to page 1 when new recommendations are loaded
