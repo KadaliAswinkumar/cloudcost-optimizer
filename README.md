@@ -1,6 +1,11 @@
-# CloudCost Optimizer - README
+# CloudCost Optimizer
 
 A smart, AI-powered cloud cost optimization platform that helps you analyze, compare, and reduce your AWS cloud spending.
+
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.109-green.svg)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-18-blue.svg)](https://reactjs.org/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## Features
 
@@ -10,126 +15,165 @@ A smart, AI-powered cloud cost optimization platform that helps you analyze, com
 - **Real-time Price Analysis**: Live AWS pricing data integration
 - **Interactive Dashboard**: Beautiful, modern UI with real-time metrics
 
+## Quick Start
+
+### Local Development (Using Podman)
+
+```bash
+# 1. Setup environment (one time)
+./setup-local.sh
+
+# 2. Start backend (Terminal 1)
+./start-backend.sh
+
+# 3. Start frontend (Terminal 2)
+./start-frontend.sh
+
+# 4. Test everything (Terminal 3)
+./test-local.sh
+```
+
+**Access:**
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+
+### Deploy to Render (Free Tier)
+
+After testing locally:
+
+```bash
+git push origin main
+```
+
+Then go to Render dashboard → Click **"Deploy latest commit"**
+
+See `doc/DEPLOY_TO_RENDER.md` for detailed instructions.
+
 ## Tech Stack
 
 ### Backend
-- **FastAPI** - Modern, fast Python web framework
-- **PostgreSQL** - Robust relational database
+- **FastAPI** - Modern Python web framework
+- **PostgreSQL** - Relational database
 - **Redis** - High-performance caching
 - **SQLAlchemy** - Powerful ORM
-- **Alembic** - Database migrations
 - **Celery** - Background job processing
 
 ### Frontend
-- **React** - Component-based UI library
+- **React** - Component-based UI
 - **Vite** - Lightning-fast build tool
-- **Tailwind CSS** - Utility-first CSS framework
+- **Tailwind CSS** - Utility-first styling
 - **Recharts** - Beautiful data visualizations
-- **Axios** - HTTP client
-
-## Quick Start (Local Development)
-
-### Prerequisites
-- Python 3.11+
-- Node.js 18+
-- PostgreSQL 14+
-- Redis 7+
-
-### Backend Setup
-```bash
-# Clone the repo
-git clone <your-repo-url>
-cd cloudcost-optimizer
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Copy environment file
-cp .env.example .env
-# Edit .env with your settings
-
-# Run database migrations
-alembic upgrade head
-
-# Start the backend
-uvicorn src.api.main:app --reload --port 8000
-```
-
-Backend will be available at: `http://localhost:8000`
-
-### Frontend Setup
-```bash
-# Navigate to frontend
-cd frontend
-
-# Install dependencies
-npm install
-
-# Copy environment file
-cp .env.example .env
-# Edit .env with your API URL
-
-# Start development server
-npm run dev
-```
-
-Frontend will be available at: `http://localhost:5173`
-
-## Deployment
-
-### Deploy to Render (Recommended - Free Tier)
-
-**No credit card required!**
-
-1. Read the comprehensive guide: `DEPLOY_TO_RENDER.md`
-2. Or follow the quick start: `RENDER_QUICKSTART.md`
-3. Total setup time: ~10 minutes
-
-**What you get:**
-- ✅ Free backend hosting
-- ✅ Free frontend hosting
-- ✅ Free PostgreSQL (90 days)
-- ✅ Auto-deploy on git push
-- ✅ HTTPS enabled
-- ✅ Custom domain support
-
-### Alternative Deployment Options
-- Railway (requires credit card)
-- Vercel (frontend) + Railway (backend)
-- AWS Amplify
-- DigitalOcean App Platform
 
 ## Project Structure
 
 ```
 cloudcost-optimizer/
-├── src/
-│   ├── api/           # FastAPI routes & endpoints
-│   ├── core/          # Core utilities (config, cache, database)
-│   ├── models/        # SQLAlchemy ORM models
-│   ├── services/      # Business logic services
-│   └── jobs/          # Background job tasks
-├── frontend/
+├── src/              # Backend source code
+│   ├── api/          # FastAPI routes
+│   ├── models/       # Database models
+│   ├── services/     # Business logic
+│   └── core/         # Core utilities
+├── frontend/         # React frontend
 │   ├── src/
-│   │   ├── pages/     # React page components
-│   │   ├── components/# Reusable UI components
-│   │   ├── context/   # React Context (auth, etc.)
-│   │   └── api/       # API client
-│   └── public/        # Static assets
-├── alembic/           # Database migrations
-├── tests/             # Test suite
-└── requirements.txt   # Python dependencies
+│   │   ├── pages/    # React pages
+│   │   └── components/
+│   └── public/
+├── doc/              # Documentation
+├── scripts/          # Utility scripts
+├── setup-local.sh    # Local setup script
+├── start-backend.sh  # Start backend
+├── start-frontend.sh # Start frontend
+└── test-local.sh     # Test everything
+```
+
+## Documentation
+
+All documentation is in the `doc/` directory:
+
+- **[START_HERE.md](doc/START_HERE.md)** - Begin here!
+- **[QUICK_START.md](doc/QUICK_START.md)** - 5-minute quick start
+- **[LOCAL_DEVELOPMENT.md](doc/LOCAL_DEVELOPMENT.md)** - Complete local dev guide
+- **[DEPLOY_TO_RENDER.md](doc/DEPLOY_TO_RENDER.md)** - Deployment guide
+- **[RENDER_QUICKSTART.md](doc/RENDER_QUICKSTART.md)** - Quick deployment
+
+## Prerequisites
+
+- **Python 3.11+** - [Download](https://www.python.org/downloads/)
+- **Podman** - [Install](https://podman.io/getting-started/installation)
+- **Node.js 18+** - [Download](https://nodejs.org/)
+
+### Installing Podman (macOS)
+```bash
+brew install podman
+podman machine init
+podman machine start
+```
+
+## Environment Variables
+
+Copy `.env.example` to `.env` and configure:
+
+```bash
+# Application
+DEBUG=true
+ENVIRONMENT=development
+
+# Database (Local Podman)
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5433/cloudcost
+
+# Redis (Local Podman)
+REDIS_URL=redis://localhost:6379/0
+
+# AWS (Optional - for real pricing data)
+AWS_ACCESS_KEY_ID=your-key
+AWS_SECRET_ACCESS_KEY=your-secret
+AWS_REGION=us-east-1
+```
+
+## Development Workflow
+
+### Daily Development
+```bash
+# Start containers
+podman start cloudcost-postgres cloudcost-redis
+
+# Activate virtual environment
+source venv/bin/activate
+
+# Start backend (auto-reload enabled)
+./start-backend.sh
+
+# Start frontend (in another terminal)
+./start-frontend.sh
+```
+
+### After Code Changes
+```bash
+# Backend: Auto-reloads with --reload flag
+# Frontend: Auto-reloads with Vite HMR
+
+# If database models change:
+alembic revision --autogenerate -m "Description"
+alembic upgrade head
+```
+
+### Before Committing
+```bash
+# Test locally first!
+./test-local.sh
+
+# If all tests pass:
+git add .
+git commit -m "Your message"
+git push origin main
 ```
 
 ## API Documentation
 
-Once the backend is running, visit:
-- **Interactive Docs**: `http://localhost:8000/docs`
-- **Alternative Docs**: `http://localhost:8000/redoc`
+Interactive API docs available at:
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
 
 ## Key Endpoints
 
@@ -140,131 +184,100 @@ Once the backend is running, visit:
 - `GET /api/v1/pricing/spot/history` - Spot price history
 - `POST /api/v1/ai/chat` - AI-powered cost analysis
 
-## Environment Variables
+## Testing
 
-See `.env.example` for all available configuration options.
-
-**Critical variables for production:**
-- `SECRET_KEY` - Generate with: `openssl rand -base64 32`
-- `DATABASE_URL` - PostgreSQL connection string
-- `REDIS_URL` - Redis connection string
-- `CORS_ORIGINS` - Allowed frontend URLs (comma-separated)
-- `DEBUG` - Set to `false` in production
-- `ENVIRONMENT` - Set to `production`
-
-## Features in Detail
-
-### 1. Price Comparison
-Compare cloud instance costs across:
-- Multiple AWS regions
-- Different instance families
-- On-demand vs Spot pricing
-- Real-time price updates
-
-### 2. AI Recommendations
-Get intelligent suggestions based on:
-- Current workload requirements
-- Budget constraints
-- Performance needs
-- Risk tolerance for spot instances
-
-### 3. Spot Intelligence
-Analyze spot instances with:
-- Historical price trends
-- Interruption frequency data
-- Best availability zones
-- Risk-adjusted pricing
-
-### 4. Dashboard Analytics
-Monitor your optimization with:
-- Total savings potential
-- Active recommendations
-- Cost trends over time
-- Instance utilization metrics
-
-## Development
-
-### Run Tests
 ```bash
-# Backend tests
+# Run all tests
+./test-local.sh
+
+# Backend tests (when implemented)
 pytest
 
 # Frontend tests
 cd frontend && npm test
-```
 
-### Code Quality
-```bash
-# Backend linting
+# Code quality
 ruff check src/
 black src/
-
-# Frontend linting
 cd frontend && npm run lint
 ```
 
-### Database Migrations
-```bash
-# Create new migration
-alembic revision --autogenerate -m "Description"
-
-# Apply migrations
-alembic upgrade head
-
-# Rollback one version
-alembic downgrade -1
-```
-
-## Production Considerations
-
-### Security
-- ✅ All passwords hashed with bcrypt
-- ✅ JWT-based authentication
-- ✅ CORS properly configured
-- ✅ XSS protection enabled
-- ✅ SQL injection prevention (ORM)
-- ✅ Sensitive data masking in logs
-
-### Performance
-- ✅ Redis caching for frequently accessed data
-- ✅ Database query optimization
-- ✅ Connection pooling
-- ✅ Async/await throughout
-- ✅ Background job processing with Celery
-
-### Monitoring
-- ✅ Structured JSON logging
-- ✅ Request/response logging middleware
-- ✅ Health check endpoints
-- ✅ Error tracking and reporting
-
 ## Troubleshooting
 
-### Backend won't start
-- Check PostgreSQL is running: `pg_isready`
-- Check Redis is running: `redis-cli ping`
-- Verify environment variables in `.env`
-- Check logs: `tail -f logs/app.log`
+### Podman Issues
+```bash
+# Check if podman machine is running
+podman machine list
 
-### Frontend can't connect to backend
-- Verify `VITE_API_URL` in `frontend/.env`
-- Check backend is running: `curl http://localhost:8000/health`
-- Check browser console for CORS errors
-- Verify `CORS_ORIGINS` includes frontend URL
+# Start podman machine
+podman machine start
 
-### Database migration errors
-- Rollback: `alembic downgrade -1`
-- Check database connection
-- Verify PostgreSQL version compatibility
-- Check migration files for syntax errors
+# Check running containers
+podman ps
+
+# View container logs
+podman logs cloudcost-postgres
+podman logs cloudcost-redis
+```
+
+### Port Already in Use
+```bash
+# Find and kill process
+lsof -ti:8000 | xargs kill -9
+lsof -ti:5173 | xargs kill -9
+```
+
+### Database Issues
+```bash
+# Reset database (WARNING: Deletes all data)
+podman exec -it cloudcost-postgres psql -U postgres -c "DROP DATABASE cloudcost; CREATE DATABASE cloudcost;"
+alembic upgrade head
+```
+
+See `doc/LOCAL_DEVELOPMENT.md` for detailed troubleshooting.
+
+## Deployment
+
+### Render (Recommended - Free Tier)
+
+1. Test locally: `./test-local.sh`
+2. Push to GitHub: `git push origin main`
+3. Go to Render dashboard
+4. Click **"Deploy latest commit"**
+
+**Cost: $0/month** (free tier)
+
+See `doc/DEPLOY_TO_RENDER.md` for complete guide.
+
+## Production Features
+
+✅ **Security**
+- Password hashing with bcrypt
+- JWT authentication
+- CORS protection
+- XSS prevention
+- SQL injection prevention
+
+✅ **Performance**
+- Redis caching
+- Database connection pooling
+- Async/await throughout
+- Query optimization
+
+✅ **Monitoring**
+- Structured JSON logging
+- Request/response logging
+- Health check endpoints
+- Error tracking
 
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch: `git checkout -b feature-name`
-3. Commit your changes: `git commit -am 'Add feature'`
-4. Push to the branch: `git push origin feature-name`
-5. Create a Pull Request
+2. Create feature branch: `git checkout -b feature-name`
+3. Test locally: `./test-local.sh`
+4. Commit changes: `git commit -am 'Add feature'`
+5. Push to branch: `git push origin feature-name`
+6. Create Pull Request
 
 ## License
 
@@ -272,10 +285,9 @@ MIT License - see LICENSE file for details
 
 ## Support
 
-- 📧 Email: support@cloudcost-optimizer.com
-- 📖 Docs: See `DEPLOY_TO_RENDER.md`
-- 🐛 Issues: GitHub Issues tab
-- 💬 Discussions: GitHub Discussions tab
+- 📖 Documentation: `doc/` directory
+- 🐛 Issues: GitHub Issues
+- 💬 Discussions: GitHub Discussions
 
 ## Roadmap
 
@@ -283,19 +295,11 @@ MIT License - see LICENSE file for details
 - [ ] Cost forecasting with ML
 - [ ] Slack/Email notifications
 - [ ] Team collaboration features
-- [ ] Custom cost rules engine
 - [ ] Kubernetes cost optimization
 - [ ] Reserved instance recommendations
 
-## Acknowledgments
-
-- AWS Pricing API for real-time data
-- OpenAI for AI recommendations
-- Render for free hosting
-- Open source community
-
 ---
 
-Made with ❤️ by the CloudCost Optimizer team
+**Made with ❤️ for cloud cost optimization**
 
 **Star this repo if you find it useful!** ⭐

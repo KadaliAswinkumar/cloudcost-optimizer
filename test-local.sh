@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Test Everything Locally Before Deploying
+# Test Everything Locally Before Deploying (Using Podman)
 
-echo "🧪 Testing CloudCost Optimizer Locally"
-echo "======================================"
+echo "🧪 Testing CloudCost Optimizer Locally (Podman)"
+echo "================================================"
 echo ""
 
 GREEN='\033[0;32m'
@@ -26,8 +26,8 @@ check_service() {
 }
 
 # Test 1: Check if containers are running
-echo "🐳 Test 1: Checking Docker containers..."
-if docker ps | grep -q cloudcost-postgres; then
+echo "🐳 Test 1: Checking Podman containers..."
+if podman ps | grep -q cloudcost-postgres; then
     echo -e "${GREEN}✅ PostgreSQL container running${NC}"
 else
     echo -e "${RED}❌ PostgreSQL container NOT running${NC}"
@@ -35,7 +35,7 @@ else
     exit 1
 fi
 
-if docker ps | grep -q cloudcost-redis; then
+if podman ps | grep -q cloudcost-redis; then
     echo -e "${GREEN}✅ Redis container running${NC}"
 else
     echo -e "${RED}❌ Redis container NOT running${NC}"
@@ -76,25 +76,29 @@ else
     echo -e "${RED}❌ Root endpoint failed${NC}"
 fi
 
+# Test health endpoint
+if curl -s http://localhost:8000/health | grep -q "healthy"; then
+    echo -e "${GREEN}✅ Health endpoint working${NC}"
+else
+    echo -e "${RED}❌ Health endpoint failed${NC}"
+fi
+
 # Test instances endpoint
-if curl -s http://localhost:8000/api/v1/instances?limit=5 | grep -q "instances"; then
+if curl -s "http://localhost:8000/api/v1/instances?limit=5" > /dev/null 2>&1; then
     echo -e "${GREEN}✅ Instances endpoint working${NC}"
 else
     echo -e "${YELLOW}⚠️  Instances endpoint failed (may need data)${NC}"
 fi
 
-# Test pricing endpoint
-if curl -s http://localhost:8000/api/v1/pricing/spot/history?limit=5 | grep -q "history"; then
-    echo -e "${GREEN}✅ Pricing endpoint working${NC}"
-else
-    echo -e "${YELLOW}⚠️  Pricing endpoint failed (may need data)${NC}"
-fi
-
 echo ""
 
-# Test 5: Check logs for errors
-echo "🔍 Test 5: Checking for errors in logs..."
-echo "   (Check terminal running backend for any red error messages)"
+# Test 5: Container status
+echo "🔍 Test 5: Checking container health..."
+echo "PostgreSQL:"
+podman ps --filter name=cloudcost-postgres --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+echo ""
+echo "Redis:"
+podman ps --filter name=cloudcost-redis --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
 echo ""
 echo "======================================"

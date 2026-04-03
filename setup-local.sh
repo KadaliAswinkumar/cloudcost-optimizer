@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# CloudCost Optimizer - Local Setup & Test Script
+# CloudCost Optimizer - Local Setup with Podman
 # Run this to set up everything locally before deploying to Render
 
 set -e  # Exit on error
 
-echo "🚀 CloudCost Optimizer - Local Setup"
-echo "===================================="
+echo "🚀 CloudCost Optimizer - Local Setup (Using Podman)"
+echo "====================================================="
 echo ""
 
 # Colors for output
@@ -44,24 +44,41 @@ pip install --upgrade pip > /dev/null 2>&1
 pip install -r requirements.txt
 echo -e "${GREEN}✅ Dependencies installed${NC}"
 
-# Step 4: Check for Docker
+# Step 4: Check for Podman
 echo ""
-echo "🐳 Step 4: Checking Docker..."
-if ! command -v docker &> /dev/null; then
-    echo -e "${RED}❌ Docker not found!${NC}"
-    echo "We'll use Docker for PostgreSQL and Redis"
-    echo "Install Docker Desktop from: https://www.docker.com/products/docker-desktop"
+echo "🐳 Step 4: Checking Podman..."
+if ! command -v podman &> /dev/null; then
+    echo -e "${RED}❌ Podman not found!${NC}"
+    echo "Install Podman from: https://podman.io/getting-started/installation"
+    echo ""
+    echo "macOS: brew install podman"
+    echo "       podman machine init"
+    echo "       podman machine start"
     exit 1
 fi
-echo -e "${GREEN}✅ Docker found${NC}"
 
-# Step 5: Start PostgreSQL with Docker
+# Check if podman machine is running (macOS/Windows)
+if podman machine list 2>/dev/null | grep -q "Currently running"; then
+    echo -e "${GREEN}✅ Podman machine is running${NC}"
+elif podman machine list 2>/dev/null | grep -q "Last up"; then
+    echo -e "${YELLOW}⚠️  Starting podman machine...${NC}"
+    podman machine start
+    echo -e "${GREEN}✅ Podman machine started${NC}"
+else
+    echo -e "${GREEN}✅ Podman found${NC}"
+fi
+
+# Step 5: Start PostgreSQL with Podman
 echo ""
 echo "🐘 Step 5: Starting PostgreSQL..."
-if docker ps | grep -q cloudcost-postgres; then
+if podman ps | grep -q cloudcost-postgres; then
     echo -e "${YELLOW}⚠️  PostgreSQL container already running${NC}"
 else
-    docker run -d \
+    # Stop and remove old container if it exists
+    podman stop cloudcost-postgres 2>/dev/null || true
+    podman rm cloudcost-postgres 2>/dev/null || true
+    
+    podman run -d \
         --name cloudcost-postgres \
         -e POSTGRES_USER=postgres \
         -e POSTGRES_PASSWORD=postgres \
@@ -74,13 +91,17 @@ else
     echo -e "${GREEN}✅ PostgreSQL started on port 5433${NC}"
 fi
 
-# Step 6: Start Redis with Docker
+# Step 6: Start Redis with Podman
 echo ""
 echo "📮 Step 6: Starting Redis..."
-if docker ps | grep -q cloudcost-redis; then
+if podman ps | grep -q cloudcost-redis; then
     echo -e "${YELLOW}⚠️  Redis container already running${NC}"
 else
-    docker run -d \
+    # Stop and remove old container if it exists
+    podman stop cloudcost-redis 2>/dev/null || true
+    podman rm cloudcost-redis 2>/dev/null || true
+    
+    podman run -d \
         --name cloudcost-redis \
         -p 6379:6379 \
         redis:7-alpine
@@ -159,8 +180,10 @@ echo "2. Start frontend: ./start-frontend.sh"
 echo "3. Open browser:   http://localhost:5173"
 echo ""
 echo "To stop containers:"
-echo "  docker stop cloudcost-postgres cloudcost-redis"
+echo "  podman stop cloudcost-postgres cloudcost-redis"
 echo ""
 echo "To remove containers:"
-echo "  docker rm cloudcost-postgres cloudcost-redis"
+echo "  podman rm cloudcost-postgres cloudcost-redis"
+echo ""
+echo "Documentation: See doc/ directory for guides"
 echo ""
