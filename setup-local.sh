@@ -93,13 +93,20 @@ fi
 # Step 5: Start PostgreSQL with Podman
 echo ""
 echo "🐘 Step 5: Starting PostgreSQL..."
-if podman ps | grep -q cloudcost-postgres; then
-    echo -e "${YELLOW}⚠️  PostgreSQL container already running${NC}"
+
+# Check if container exists (running or stopped)
+if podman ps -a --format "{{.Names}}" | grep -q "^cloudcost-postgres$"; then
+    # Container exists, check if it's running
+    if podman ps --format "{{.Names}}" | grep -q "^cloudcost-postgres$"; then
+        echo -e "${YELLOW}⚠️  PostgreSQL container already running${NC}"
+    else
+        # Container exists but not running, start it
+        echo "Starting existing PostgreSQL container..."
+        podman start cloudcost-postgres
+        echo -e "${GREEN}✅ PostgreSQL started on port 5433${NC}"
+    fi
 else
-    # Stop and remove old container if it exists
-    podman stop cloudcost-postgres 2>/dev/null || true
-    podman rm cloudcost-postgres 2>/dev/null || true
-    
+    # Container doesn't exist, create it
     podman run -d \
         --name cloudcost-postgres \
         -e POSTGRES_USER=postgres \
@@ -116,13 +123,20 @@ fi
 # Step 6: Start Redis with Podman
 echo ""
 echo "📮 Step 6: Starting Redis..."
-if podman ps | grep -q cloudcost-redis; then
-    echo -e "${YELLOW}⚠️  Redis container already running${NC}"
+
+# Check if container exists (running or stopped)
+if podman ps -a --format "{{.Names}}" | grep -q "^cloudcost-redis$"; then
+    # Container exists, check if it's running
+    if podman ps --format "{{.Names}}" | grep -q "^cloudcost-redis$"; then
+        echo -e "${YELLOW}⚠️  Redis container already running${NC}"
+    else
+        # Container exists but not running, start it
+        echo "Starting existing Redis container..."
+        podman start cloudcost-redis
+        echo -e "${GREEN}✅ Redis started on port 6379${NC}"
+    fi
 else
-    # Stop and remove old container if it exists
-    podman stop cloudcost-redis 2>/dev/null || true
-    podman rm cloudcost-redis 2>/dev/null || true
-    
+    # Container doesn't exist, create it
     podman run -d \
         --name cloudcost-redis \
         -p 6379:6379 \
