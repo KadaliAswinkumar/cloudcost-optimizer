@@ -72,20 +72,19 @@ class Settings(BaseSettings):
     rate_limit_requests: int = Field(default=100, env="RATE_LIMIT_REQUESTS")
     rate_limit_window: int = Field(default=60, env="RATE_LIMIT_WINDOW")
     
-    # CORS
-    cors_origins: List[str] = Field(
-        default=["http://localhost:5173", "http://localhost:3000"],
-        env="CORS_ORIGINS"
+    # CORS (stored as string, converted to list via property)
+    _cors_origins_str: str = Field(
+        default="http://localhost:5173,http://localhost:3000",
+        env="CORS_ORIGINS",
+        alias="cors_origins"
     )
     
-    @field_validator('cors_origins', mode='before')
-    @classmethod
-    def parse_cors_origins(cls, v):
-        """Parse CORS origins from comma-separated string or JSON list."""
-        if isinstance(v, str):
-            # If it's a string, split by comma and filter empty values
-            return [origin.strip() for origin in v.split(',') if origin.strip()]
-        return v
+    @property
+    def cors_origins(self) -> List[str]:
+        """Parse CORS origins from comma-separated string."""
+        if isinstance(self._cors_origins_str, str):
+            return [origin.strip() for origin in self._cors_origins_str.split(',') if origin.strip()]
+        return ["http://localhost:5173", "http://localhost:3000"]
     
     # Logging
     log_level: str = Field(default="INFO", env="LOG_LEVEL")
