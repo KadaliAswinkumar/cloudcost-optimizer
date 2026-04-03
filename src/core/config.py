@@ -73,18 +73,9 @@ class Settings(BaseSettings):
     @field_validator('cors_origins', mode='before')
     @classmethod
     def parse_cors_origins(cls, v):
-        """Parse CORS origins from comma-separated string or JSON array."""
-        if isinstance(v, str):
-            # If it's a string, split by comma
-            return [origin.strip() for origin in v.split(',')]
-        return v
-    
-    @field_validator('cors_origins', mode='before')
-    @classmethod
-    def parse_cors_origins(cls, v):
         """Parse CORS origins from comma-separated string or JSON list."""
         if isinstance(v, str):
-            # If it's a string, split by comma
+            # If it's a string, split by comma and filter empty values
             return [origin.strip() for origin in v.split(',') if origin.strip()]
         return v
     
