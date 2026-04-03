@@ -1,44 +1,79 @@
+# Render Blueprint for CloudCost Optimizer
+# This file enables one-click deployment on Render
+# https://render.com/docs/blueprint-spec
+
 services:
-  # Main API Service
+  # Backend API
   - type: web
     name: cloudcost-api
-    env: python
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "export PYTHONPATH=/opt/render/project/src:$PYTHONPATH && alembic upgrade head && (python scripts/fetch_real_data.py || echo '⚠️  Data fetch failed') && (python scripts/fetch_real_spot_pricing.py || echo '⚠️  Spot pricing failed') && (python scripts/add_reserved_pricing.py || echo '⚠️  Reserved pricing failed') && uvicorn src.api.main:app --host 0.0.0.0 --port $PORT"
+    runtime: python
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: alembic upgrade head && uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: false
+      - key: SECRET_KEY
+        generateValue: true
       - key: DATABASE_URL
         fromDatabase:
           name: cloudcost-db
           property: connectionString
-      - key: GROQ_API_KEY
+      - key: REDIS_URL
         sync: false
-      - key: AWS_ACCESS_KEY_ID
-        sync: false
-      - key: AWS_SECRET_ACCESS_KEY
-        sync: false
+      - key: CORS_ORIGINS
+        value: http://localhost:5173,http://localhost:3000
 
-  # Weekly Spot Price Collection Job
+  # Frontend Static Site
+  - type: web
+    name: cloudcost-app
+    runtime: static
+    plan: free
+    branch: main
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://cloudcost-api.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  # Spot Price Collector (Runs once a month - super cheap!)
   - type: cron
     name: spot-price-collector
-    env: python
-    schedule: "0 0 * * 0"  # Every Sunday at midnight UTC (Weekly)
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "export PYTHONPATH=/opt/render/project/src:$PYTHONPATH && python scripts/collect_spot_prices_hourly.py"
+    runtime: python
+    plan: free
+    region: oregon
+    branch: main
+    schedule: "0 2 1 * *"
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: python scripts/fetch_real_spot_pricing.py
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0
       - key: DATABASE_URL
         fromDatabase:
           name: cloudcost-db
           property: connectionString
+      - key: REDIS_URL
+        sync: false
+      - key: AWS_REGION
+        value: us-east-1
       - key: AWS_ACCESS_KEY_ID
         sync: false
       - key: AWS_SECRET_ACCESS_KEY
         sync: false
 
 databases:
+  # PostgreSQL Database
   - name: cloudcost-db
+    plan: free
     databaseName: cloudcost
-    user: cloudcost
+    user: cloudcost_user
+    region: oregon

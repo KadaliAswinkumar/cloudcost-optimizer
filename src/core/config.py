@@ -70,6 +70,24 @@ class Settings(BaseSettings):
         env="CORS_ORIGINS"
     )
     
+    @field_validator('cors_origins', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Parse CORS origins from comma-separated string or JSON array."""
+        if isinstance(v, str):
+            # If it's a string, split by comma
+            return [origin.strip() for origin in v.split(',')]
+        return v
+    
+    @field_validator('cors_origins', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Parse CORS origins from comma-separated string or JSON list."""
+        if isinstance(v, str):
+            # If it's a string, split by comma
+            return [origin.strip() for origin in v.split(',') if origin.strip()]
+        return v
+    
     # Logging
     log_level: str = Field(default="INFO", env="LOG_LEVEL")
     log_format: str = Field(default="json", env="LOG_FORMAT")

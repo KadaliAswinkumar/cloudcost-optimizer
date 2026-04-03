@@ -3,13 +3,13 @@ from src.models.pricing import (
     OnDemandPricing,
     ReservedPricing,
     SpotPricing,
-    SpotPriceHistory,
 )
 from src.models.recommendation import Recommendation, WorkloadProfile
 from src.models.cloud_provider import (
     CloudProvider,
     CloudInstance,
     CloudPricing,
+    SpotPriceHistory,
     GCP_REGIONS,
     AZURE_REGIONS,
 )

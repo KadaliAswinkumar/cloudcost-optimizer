@@ -1,144 +1,44 @@
-# ☁️ CloudCost Optimizer
+# CloudCost Optimizer - README
 
-> **Multi-Cloud Instance Price Optimizer & Recommender**
+A smart, AI-powered cloud cost optimization platform that helps you analyze, compare, and reduce your AWS cloud spending.
 
-A production-ready full-stack application that helps you find the most cost-effective cloud instances across **AWS, Google Cloud Platform (GCP), and Microsoft Azure**. Built with modern technologies and deployed with GitHub Pages.
+## Features
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.109-green.svg)
-![React](https://img.shields.io/badge/React-18.2-blue.svg)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg)
-![Redis](https://img.shields.io/badge/Redis-7-red.svg)
+- **Multi-Cloud Comparison**: Compare instance types across AWS regions
+- **AI-Powered Recommendations**: Get intelligent cost-saving suggestions
+- **Spot Instance Intelligence**: Analyze spot pricing trends and interruption risks
+- **Real-time Price Analysis**: Live AWS pricing data integration
+- **Interactive Dashboard**: Beautiful, modern UI with real-time metrics
 
----
-
-## 🌐 Live Demo
-
-**👉 [View Live Application](https://kadaliaswinkumar.github.io/cloudcost-optimizer/)**
-
----
-
-## ✨ Features
-
-### Core Capabilities
-
-- **🤖 CloudCost AI™ Chat** - ChatGPT-like conversational interface with voice input 🎤
-- **🧠 Smart AI Recommendations** - Intelligent scoring algorithm ranks instances by suitability
-- **🌐 Multi-Cloud Support** - Compare instances across AWS, GCP, and Azure in one place
-- **📊 Instance Discovery** - Browse and filter 2,000+ instance types across all major clouds
-- **💰 Cross-Cloud Comparison** - Find the cheapest option across providers for your workload
-- **🔄 Instance Mapping** - Find equivalent instances across different cloud providers
-- **📈 Spot Analysis** - Track spot/preemptible prices and interruption risks
-- **🛡️ Interruption Risk Analysis** - Real-time risk scoring based on historical volatility
-- **📉 Cost Projection** - Project costs over time with different scenarios
-- **⚡ Real-time Updates** - Background jobs keep pricing data fresh
-- **🎨 Modern React UI** - Beautiful dashboard built with React + Tailwind CSS
-
-### Supported Cloud Providers
-
-| Provider | Instance Types | Regions | Spot Support |
-|----------|---------------|---------|--------------|
-| **AWS** | EC2 (1,100+ types) | 5 regions | ✅ Spot Instances |
-| **GCP** | Compute Engine (500+ types) | 22 regions | ✅ Preemptible/Spot VMs |
-| **Azure** | Virtual Machines (500+ types) | 27 regions | ✅ Spot VMs |
-
-### Pricing Strategies Analyzed
-
-| Strategy | AWS | GCP | Azure | Savings |
-|----------|-----|-----|-------|---------|
-| **On-Demand** | ✅ | ✅ | ✅ | Baseline |
-| **Reserved/Committed 1-Year** | ✅ | ✅ CUD | ✅ | Up to 40% |
-| **Reserved/Committed 3-Year** | ✅ | ✅ CUD | ✅ | Up to 60% |
-| **Spot/Preemptible** | ✅ | ✅ | ✅ | Up to 90% |
-
----
-
-## 🏗️ Architecture
-
-```
-┌───────────────────────────────────────────────────────────────────────┐
-│                     CloudCost Optimizer (Multi-Cloud)                  │
-├───────────────────────────────────────────────────────────────────────┤
-│                                                                        │
-│  ┌────────────┐    ┌────────────┐    ┌──────────────────────────────┐ │
-│  │  FastAPI   │───▶│   Redis    │───▶│     Background Jobs          │ │
-│  │   Server   │    │   Cache    │    │     (Celery + Beat)          │ │
-│  └────────────┘    └────────────┘    └──────────────────────────────┘ │
-│        │                                          │                    │
-│        ▼                                          ▼                    │
-│  ┌────────────────────────────────────────────────────────────────┐   │
-│  │                        PostgreSQL                               │   │
-│  │  • Cloud Instances (AWS/GCP/Azure)  • Pricing Data              │   │
-│  │  • Cross-Cloud Mappings  • Recommendations                      │   │
-│  └────────────────────────────────────────────────────────────────┘   │
-│                                                                        │
-│  ┌────────────────────────────────────────────────────────────────┐   │
-│  │                     Cloud Provider APIs                         │   │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │   │
-│  │  │  AWS APIs    │  │  GCP APIs    │  │    Azure APIs        │  │   │
-│  │  │  • Pricing   │  │  • Compute   │  │    • Retail Prices   │  │   │
-│  │  │  • EC2       │  │  • Billing   │  │    • Compute         │  │   │
-│  │  └──────────────┘  └──────────────┘  └──────────────────────┘  │   │
-│  └────────────────────────────────────────────────────────────────┘   │
-│                                                                        │
-└───────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 📦 Tech Stack
-
-### Frontend
-- **React 18** - Modern UI framework
-- **Tailwind CSS** - Utility-first styling
-- **Vite** - Lightning-fast build tool
-- **React Router** - Client-side routing
-- **Recharts** - Data visualization
-- **Axios** - HTTP client
+## Tech Stack
 
 ### Backend
-- **FastAPI 0.109** - Async REST API framework
-- **PostgreSQL 16** - Persistent data storage
-- **Redis 7** - Caching & rate limiting
-- **Celery** - Background job processing
-- **SQLAlchemy 2.0** - Async database operations
-- **Pydantic 2.5** - Request/response validation
-- **Boto3** - AWS API integration
-
-### DevOps
-- **Podman/Docker** - Containerization
-- **GitHub Actions** - CI/CD pipeline
-- **GitHub Pages** - Static site hosting
+- **FastAPI** - Modern, fast Python web framework
+- **PostgreSQL** - Robust relational database
+- **Redis** - High-performance caching
+- **SQLAlchemy** - Powerful ORM
 - **Alembic** - Database migrations
+- **Celery** - Background job processing
 
----
+### Frontend
+- **React** - Component-based UI library
+- **Vite** - Lightning-fast build tool
+- **Tailwind CSS** - Utility-first CSS framework
+- **Recharts** - Beautiful data visualizations
+- **Axios** - HTTP client
 
-## 🚀 Quick Start
+## Quick Start (Local Development)
 
-### 🎯 DEPLOYMENT OPTIONS
-
-**⭐ Recommended**: **Fly.io** (100% FREE!)
-- **Quick Setup**: See [QUICK_START_FLYIO.md](./QUICK_START_FLYIO.md) (30 mins)
-- **Full Guide**: See [FLY_IO_MIGRATION.md](./FLY_IO_MIGRATION.md)
-- **Cost**: $0/month (within free tier)
-- **Includes**: API + Database + Cron Jobs
-
-**Alternative**: Render (Database costs $7/month)
-
----
-
-### Prerequisites (for local development)
-
+### Prerequisites
 - Python 3.11+
 - Node.js 18+
-- Podman or Docker
-- PostgreSQL (or use Docker)
+- PostgreSQL 14+
+- Redis 7+
 
-### 1. Clone & Setup
-
+### Backend Setup
 ```bash
-# Clone the repository
-git clone https://github.com/YOUR_USERNAME/cloudcost-optimizer.git
+# Clone the repo
+git clone <your-repo-url>
 cd cloudcost-optimizer
 
 # Create virtual environment
@@ -150,348 +50,252 @@ pip install -r requirements.txt
 
 # Copy environment file
 cp .env.example .env
+# Edit .env with your settings
+
+# Run database migrations
+alembic upgrade head
+
+# Start the backend
+uvicorn src.api.main:app --reload --port 8000
 ```
 
-### 2. Start with Podman
+Backend will be available at: `http://localhost:8000`
 
+### Frontend Setup
 ```bash
-# Start all services
-podman-compose up -d
-
-# Check status
-podman-compose ps
-
-# View logs
-podman-compose logs -f api
-```
-
-### 3. Start the Frontend
-
-```bash
-# Navigate to frontend directory
+# Navigate to frontend
 cd frontend
 
 # Install dependencies
 npm install
 
+# Copy environment file
+cp .env.example .env
+# Edit .env with your API URL
+
 # Start development server
 npm run dev
 ```
 
-### 4. Access the Application
+Frontend will be available at: `http://localhost:5173`
 
-- **Frontend UI**: http://localhost:3000
-- **API Documentation**: http://localhost:8000/docs
-- **Health Check**: http://localhost:8000/health
+## Deployment
 
----
+### Deploy to Render (Recommended - Free Tier)
 
-## 🌐 Fetching Real Cloud Data
+**No credit card required!**
 
-By default, the application includes sample pricing data. To fetch **real, live pricing** from AWS, GCP, and Azure:
+1. Read the comprehensive guide: `DEPLOY_TO_RENDER.md`
+2. Or follow the quick start: `RENDER_QUICKSTART.md`
+3. Total setup time: ~10 minutes
 
-### Quick Setup (Local)
+**What you get:**
+- ✅ Free backend hosting
+- ✅ Free frontend hosting
+- ✅ Free PostgreSQL (90 days)
+- ✅ Auto-deploy on git push
+- ✅ HTTPS enabled
+- ✅ Custom domain support
 
-```bash
-# 1. Set up AWS credentials in .env
-AWS_ACCESS_KEY_ID=your_access_key_here
-AWS_SECRET_ACCESS_KEY=your_secret_key_here
-AWS_DEFAULT_REGION=us-east-1
+### Alternative Deployment Options
+- Railway (requires credit card)
+- Vercel (frontend) + Railway (backend)
+- AWS Amplify
+- DigitalOcean App Platform
 
-# 2. Run the data fetcher
-python scripts/fetch_real_data.py
-
-# 3. Add spot/preemptible pricing (NEW!)
-python scripts/add_spot_pricing.py
-```
-
-This will fetch:
-- ✅ **1,100+ AWS EC2 instances** from AWS Pricing API
-- ✅ **500+ GCP Compute Engine instances** programmatically generated (no credentials needed)
-- ✅ **500+ Azure VM instances** programmatically generated (no credentials needed)
-- ✅ **Spot/Preemptible pricing** for all instances across all regions (60-90% cheaper!)
-
-**Fetch time**: 10-15 minutes for the first run + 2-3 minutes for spot pricing.
-
-### AWS Credentials Setup
-
-1. **Create AWS Free Account**: https://aws.amazon.com/free (credit card required but won't be charged)
-2. **Create IAM User** in AWS Console with **AWSPriceListServiceFullAccess** policy
-3. **Generate Access Keys** for the IAM user
-4. **Add credentials** to `.env` file
-
-📖 **Detailed guide**: See [SETUP_REAL_DATA.md](./SETUP_REAL_DATA.md)
-
-### For Render Deployment
-
-1. Go to Render Dashboard → your **cloudcost-api** service
-2. Add environment variables: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`
-3. Open Shell tab and run:
-```bash
-python -c "from src.jobs.price_updater import update_all_prices; update_all_prices()"
-```
-
-**Note**: AWS Pricing API is **100% FREE**. No charges for reading pricing data!
-
----
-
-## 🤖 CloudCost AI™ Setup (Conversational Chat)
-
-**NEW!** ChatGPT-like conversational interface powered by Groq's FREE Llama 3.1 70B model.
-
-### Get Your FREE Groq API Key
-
-1. **Sign Up**: https://console.groq.com (FREE, no credit card required)
-2. **Create API Key**: https://console.groq.com/keys
-3. **Copy the key** (starts with `gsk_...`)
-
-### Add to Render
-
-1. Go to Render Dashboard → **cloudcost-optimizer** service
-2. Click **"Environment"** tab
-3. Add environment variable:
-   - **Key**: `GROQ_API_KEY`
-   - **Value**: `gsk_your_key_here`
-4. Click **"Save Changes"** (auto-redeploys)
-
-### Features
-
-- 💬 **ChatGPT-like interface** - Natural language queries
-- 🎤 **Voice input** - Speak your questions (FREE Web Speech API)
-- 🧠 **Context-aware** - Fetches real pricing from database
-- ⚡ **Super fast** - 500 tokens/second (fastest in the world!)
-- 🆓 **100% FREE** - 15,000 requests/day
-
-### Example Conversations
-
-```
-👤 "I need instances for a daily data pipeline processing 3GB"
-
-🤖 "For your daily pipeline, I recommend:
-    - AWS: m5g.xlarge (4 vCPUs, 16GB) - $0.17/hour
-    - GCP: n2-standard-4 (4 vCPUs, 16GB) - $0.19/hour
-    💡 Use Spot instances to save 70%! (~$38/month vs $125)"
-```
-
-📖 **Full guide**: [CONVERSATIONAL_AI_SETUP.md](./CONVERSATIONAL_AI_SETUP.md)
-
----
-
-## 📚 API Documentation
-
-### Key Endpoints
-
-```bash
-# Multi-cloud recommendations
-POST /api/v1/multicloud/recommendations
-{
-    "min_vcpus": 4,
-    "min_memory_gb": 16,
-    "providers": ["aws", "gcp", "azure"],
-    "workload_type": "steady",
-    "spot_eligible": true,
-    "hours_per_month": 730,
-    "max_monthly_budget": 200
-}
-
-# List instances across clouds
-GET /api/v1/multicloud/instances?min_vcpus=4&min_memory=8
-
-# Compare instance pricing
-GET /api/v1/multicloud/pricing/compare?vcpus=4&memory_gb=16
-
-# Find equivalent instances
-GET /api/v1/multicloud/compare/m5.large?provider=aws
-```
-
-For complete API documentation, visit `/docs` endpoint when running locally.
-
----
-
-## 🧪 Testing
-
-```bash
-# Run quick tests
-./scripts/quick_test.sh
-
-# Run full integration tests
-./scripts/integration_test.sh
-
-# Run specific tests
-pytest tests/test_api.py -v
-```
-
----
-
-## 🚢 Deployment
-
-### GitHub Pages (Frontend Only)
-
-The frontend is automatically deployed to GitHub Pages on every push to main branch.
-
-1. Enable GitHub Pages in repository settings
-2. Push to main branch
-3. Access at: `https://YOUR_USERNAME.github.io/cloudcost-optimizer/`
-
-### Full Stack Deployment
-
-For deploying the complete application with backend, see `DEPLOYMENT_GUIDE.md`.
-
-Recommended platforms:
-- **Render.com** - Free tier with PostgreSQL & Redis
-- **Railway.app** - $5/month credit
-- **Fly.io** - Free tier available
-
----
-
-## 📊 Project Structure
+## Project Structure
 
 ```
 cloudcost-optimizer/
-├── frontend/              # React frontend application
+├── src/
+│   ├── api/           # FastAPI routes & endpoints
+│   ├── core/          # Core utilities (config, cache, database)
+│   ├── models/        # SQLAlchemy ORM models
+│   ├── services/      # Business logic services
+│   └── jobs/          # Background job tasks
+├── frontend/
 │   ├── src/
-│   │   ├── pages/        # Dashboard, Instance Finder, Spot Intelligence, CloudCost AI
-│   │   ├── components/   # Reusable UI components (Layout, Cards, Charts)
-│   │   └── api/          # API client for backend communication
-│   ├── package.json
-│   └── vite.config.js
-│
-├── src/                   # Backend FastAPI application
-│   ├── api/
-│   │   ├── routes/       # API endpoints (multicloud, ai, spot_intelligence, debug)
-│   │   └── middleware/   # Rate limiting, CORS
-│   ├── services/         # Business logic & cloud integrations
-│   │   ├── *_price_fetcher.py  # AWS, GCP, Azure pricing
-│   │   ├── conversational_ai.py # Groq AI integration
-│   │   └── spot_intelligence.py # Spot analysis engine
-│   ├── models/           # SQLAlchemy database models
-│   ├── jobs/             # Celery background tasks (optional)
-│   ├── core/             # Configuration, database, cache
-│   └── utils/            # Helper functions
-│
-├── scripts/               # Utility and data collection scripts
-│   ├── fetch_real_data.py           # Populate instance database
-│   ├── fetch_real_spot_pricing.py   # Collect spot prices
-│   ├── add_reserved_pricing.py      # Generate reserved pricing
-│   ├── collect_spot_prices_hourly.py # Cron job for historical data
-│   └── test_*.sh                     # Testing utilities
-│
-├── docs/                  # Documentation
-│   ├── SETUP_CRON_JOB.md
-│   ├── SPOT_PRICING_FINAL_FIX.md
-│   ├── CONVERSATIONAL_AI_SETUP.md
-│   └── ...more docs
-│
-├── alembic/               # Database migrations
-│   └── versions/
-│
-├── tests/                 # Test suite
-├── Dockerfile             # Container image definition
-├── docker-compose.yml     # Local development setup
-├── render.yaml            # Render.com deployment config
-├── requirements.txt       # Python dependencies
-├── STRATEGY_TO_WIN.md     # Product strategy & competitive analysis
-└── README.md              # You are here!
+│   │   ├── pages/     # React page components
+│   │   ├── components/# Reusable UI components
+│   │   ├── context/   # React Context (auth, etc.)
+│   │   └── api/       # API client
+│   └── public/        # Static assets
+├── alembic/           # Database migrations
+├── tests/             # Test suite
+└── requirements.txt   # Python dependencies
 ```
 
----
+## API Documentation
 
-## 💡 Key Features Explained
+Once the backend is running, visit:
+- **Interactive Docs**: `http://localhost:8000/docs`
+- **Alternative Docs**: `http://localhost:8000/redoc`
 
-### Multi-Cloud Recommendations
+## Key Endpoints
 
-The application analyzes pricing across all major cloud providers and provides:
-- Cost comparison across AWS, GCP, and Azure
-- Equivalent instance mapping
-- Spot/preemptible instance analysis
-- Risk-based recommendations
-- Real-time pricing data
+- `GET /health` - Health check
+- `GET /api/v1/instances` - List cloud instances
+- `GET /api/v1/instances/compare` - Compare instances
+- `POST /api/v1/recommendations` - Get cost optimization recommendations
+- `GET /api/v1/pricing/spot/history` - Spot price history
+- `POST /api/v1/ai/chat` - AI-powered cost analysis
 
-### Interruption Risk Analysis
+## Environment Variables
 
-For Spot/Preemptible instances, the system calculates:
-- Historical price volatility (30-day rolling)
-- Price trend detection
-- Frequency of price spikes
-- Risk scores (0-100)
-- Bid strategy recommendations
+See `.env.example` for all available configuration options.
 
-### Cost Optimization
+**Critical variables for production:**
+- `SECRET_KEY` - Generate with: `openssl rand -base64 32`
+- `DATABASE_URL` - PostgreSQL connection string
+- `REDIS_URL` - Redis connection string
+- `CORS_ORIGINS` - Allowed frontend URLs (comma-separated)
+- `DEBUG` - Set to `false` in production
+- `ENVIRONMENT` - Set to `production`
 
-Recommendations consider:
-- On-Demand vs Reserved vs Spot pricing
-- Regional pricing variations
-- Instance family characteristics
-- Workload patterns
+## Features in Detail
+
+### 1. Price Comparison
+Compare cloud instance costs across:
+- Multiple AWS regions
+- Different instance families
+- On-demand vs Spot pricing
+- Real-time price updates
+
+### 2. AI Recommendations
+Get intelligent suggestions based on:
+- Current workload requirements
 - Budget constraints
+- Performance needs
+- Risk tolerance for spot instances
 
----
+### 3. Spot Intelligence
+Analyze spot instances with:
+- Historical price trends
+- Interruption frequency data
+- Best availability zones
+- Risk-adjusted pricing
 
-## 🎯 Use Cases
+### 4. Dashboard Analytics
+Monitor your optimization with:
+- Total savings potential
+- Active recommendations
+- Cost trends over time
+- Instance utilization metrics
 
-1. **Cost Optimization** - Find the cheapest instances for your workload across clouds
-2. **Cloud Migration** - Compare costs when moving between cloud providers
-3. **Budget Planning** - Project monthly costs with different scenarios
-4. **Instance Selection** - Choose the right instance type based on requirements
-5. **Spot Analysis** - Evaluate risk vs savings for spot instances
+## Development
 
----
+### Run Tests
+```bash
+# Backend tests
+pytest
 
-## 📝 Documentation
+# Frontend tests
+cd frontend && npm test
+```
 
-- `RUNNING_WITH_PODMAN.md` - Complete setup guide with Podman
-- `DEPLOYMENT_GUIDE.md` - Deploy to various platforms
-- `TEST_CASES.md` - Comprehensive testing guide
-- `QUICK_REFERENCE.md` - Command reference
-- `ACCESS_POINTS.md` - UI and API access guide
+### Code Quality
+```bash
+# Backend linting
+ruff check src/
+black src/
 
----
+# Frontend linting
+cd frontend && npm run lint
+```
 
-## 🤝 Contributing
+### Database Migrations
+```bash
+# Create new migration
+alembic revision --autogenerate -m "Description"
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+# Apply migrations
+alembic upgrade head
+
+# Rollback one version
+alembic downgrade -1
+```
+
+## Production Considerations
+
+### Security
+- ✅ All passwords hashed with bcrypt
+- ✅ JWT-based authentication
+- ✅ CORS properly configured
+- ✅ XSS protection enabled
+- ✅ SQL injection prevention (ORM)
+- ✅ Sensitive data masking in logs
+
+### Performance
+- ✅ Redis caching for frequently accessed data
+- ✅ Database query optimization
+- ✅ Connection pooling
+- ✅ Async/await throughout
+- ✅ Background job processing with Celery
+
+### Monitoring
+- ✅ Structured JSON logging
+- ✅ Request/response logging middleware
+- ✅ Health check endpoints
+- ✅ Error tracking and reporting
+
+## Troubleshooting
+
+### Backend won't start
+- Check PostgreSQL is running: `pg_isready`
+- Check Redis is running: `redis-cli ping`
+- Verify environment variables in `.env`
+- Check logs: `tail -f logs/app.log`
+
+### Frontend can't connect to backend
+- Verify `VITE_API_URL` in `frontend/.env`
+- Check backend is running: `curl http://localhost:8000/health`
+- Check browser console for CORS errors
+- Verify `CORS_ORIGINS` includes frontend URL
+
+### Database migration errors
+- Rollback: `alembic downgrade -1`
+- Check database connection
+- Verify PostgreSQL version compatibility
+- Check migration files for syntax errors
+
+## Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+2. Create a feature branch: `git checkout -b feature-name`
+3. Commit your changes: `git commit -am 'Add feature'`
+4. Push to the branch: `git push origin feature-name`
+5. Create a Pull Request
+
+## License
+
+MIT License - see LICENSE file for details
+
+## Support
+
+- 📧 Email: support@cloudcost-optimizer.com
+- 📖 Docs: See `DEPLOY_TO_RENDER.md`
+- 🐛 Issues: GitHub Issues tab
+- 💬 Discussions: GitHub Discussions tab
+
+## Roadmap
+
+- [ ] Support for Azure and GCP
+- [ ] Cost forecasting with ML
+- [ ] Slack/Email notifications
+- [ ] Team collaboration features
+- [ ] Custom cost rules engine
+- [ ] Kubernetes cost optimization
+- [ ] Reserved instance recommendations
+
+## Acknowledgments
+
+- AWS Pricing API for real-time data
+- OpenAI for AI recommendations
+- Render for free hosting
+- Open source community
 
 ---
 
-## 📄 License
+Made with ❤️ by the CloudCost Optimizer team
 
-MIT License - see the [LICENSE](LICENSE) file for details
-
----
-
-## 👨‍💻 Author
-
-**Aswin Kumar**
-
-Built as a comprehensive full-stack project showcasing:
-- Modern web development practices
-- Cloud infrastructure knowledge
-- System architecture design
-- API integration skills
-- DevOps & deployment expertise
-
----
-
-## 🙏 Acknowledgments
-
-- Cloud pricing data from AWS, GCP, and Azure public APIs
-- Open source community for amazing tools and libraries
-- FastAPI and React communities for excellent documentation
-
----
-
-## 📞 Contact
-
-For questions or feedback:
-- GitHub: [@KadaliAswinkumar](https://github.com/KadaliAswinkumar)
-- Project Link: [https://github.com/KadaliAswinkumar/cloudcost-optimizer](https://github.com/KadaliAswinkumar/cloudcost-optimizer)
-
----
-
-**Built with ❤️ for cloud cost optimization**
+**Star this repo if you find it useful!** ⭐

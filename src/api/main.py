@@ -17,6 +17,7 @@ from src.core.config import settings
 from src.core.database import init_db, close_db
 from src.core.cache import init_redis, close_redis
 from src.api.middleware.rate_limiter import RateLimiterMiddleware
+from src.api.middleware.logging import RequestLoggingMiddleware
 from src.api.routes import (
     health_router,
     instances_router,
@@ -32,8 +33,18 @@ from src.api.routes.debug import router as debug_router
 logging.basicConfig(
     level=getattr(logging, settings.log_level),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
+
+# Configure root logger for production
+if not settings.debug:
+    # Production logging - structured JSON logs
+    logging.basicConfig(
+        level=logging.INFO,
+        format='{"timestamp":"%(asctime)s","logger":"%(name)s","level":"%(levelname)s","message":"%(message)s"}',
+        datefmt="%Y-%m-%dT%H:%M:%S",
+    )
 
 
 @asynccontextmanager
@@ -42,25 +53,36 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info(f"Starting {settings.app_name}...")
     
+    # Initialize database
     try:
-        # Initialize database
         await init_db()
-        logger.info("Database initialized")
-        
-        # Initialize Redis
-        await init_redis()
-        logger.info("Redis cache initialized")
-        
+        logger.info("✅ Database initialized successfully")
     except Exception as e:
-        logger.error(f"Startup error: {e}")
-        raise
+        logger.error(f"❌ Database initialization failed: {e}")
+        logger.warning("⚠️  App will start anyway, but database features won't work")
+    
+    # Initialize Redis
+    try:
+        await init_redis()
+        logger.info("✅ Redis cache initialized successfully")
+    except Exception as e:
+        logger.error(f"❌ Redis initialization failed: {e}")
+        logger.warning("⚠️  App will start anyway, but caching won't work")
+    
+    logger.info(f"🚀 {settings.app_name} started successfully!")
     
     yield
     
     # Shutdown
     logger.info("Shutting down...")
-    await close_redis()
-    await close_db()
+    try:
+        await close_redis()
+    except:
+        pass
+    try:
+        await close_db()
+    except:
+        pass
     logger.info("Cleanup complete")
 
 
@@ -109,6 +131,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add request/response logging middleware (FIRST - logs everything)
+app.add_middleware(RequestLoggingMiddleware)
 
 # Add GZip compression middleware (compress responses > 1KB)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
