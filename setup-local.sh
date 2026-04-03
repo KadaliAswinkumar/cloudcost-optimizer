@@ -95,18 +95,17 @@ echo ""
 echo "🐘 Step 5: Starting PostgreSQL..."
 
 # Check if container exists (running or stopped)
-if podman ps -a --format "{{.Names}}" | grep -q "^cloudcost-postgres$"; then
-    # Container exists, check if it's running
-    if podman ps --format "{{.Names}}" | grep -q "^cloudcost-postgres$"; then
-        echo -e "${YELLOW}⚠️  PostgreSQL container already running${NC}"
-    else
-        # Container exists but not running, start it
-        echo "Starting existing PostgreSQL container..."
-        podman start cloudcost-postgres
-        echo -e "${GREEN}✅ PostgreSQL started on port 5433${NC}"
-    fi
+if podman ps -a | grep -q cloudcost-postgres; then
+    echo -e "${YELLOW}⚠️  Old PostgreSQL container found, removing...${NC}"
+    podman stop cloudcost-postgres 2>/dev/null || true
+    podman rm -f cloudcost-postgres 2>/dev/null || true
+    sleep 1
+fi
+
+# Check if it's running
+if podman ps | grep -q cloudcost-postgres; then
+    echo -e "${YELLOW}⚠️  PostgreSQL container already running${NC}"
 else
-    # Container doesn't exist, create it
     podman run -d \
         --name cloudcost-postgres \
         -e POSTGRES_USER=postgres \
@@ -125,18 +124,17 @@ echo ""
 echo "📮 Step 6: Starting Redis..."
 
 # Check if container exists (running or stopped)
-if podman ps -a --format "{{.Names}}" | grep -q "^cloudcost-redis$"; then
-    # Container exists, check if it's running
-    if podman ps --format "{{.Names}}" | grep -q "^cloudcost-redis$"; then
-        echo -e "${YELLOW}⚠️  Redis container already running${NC}"
-    else
-        # Container exists but not running, start it
-        echo "Starting existing Redis container..."
-        podman start cloudcost-redis
-        echo -e "${GREEN}✅ Redis started on port 6379${NC}"
-    fi
+if podman ps -a | grep -q cloudcost-redis; then
+    echo -e "${YELLOW}⚠️  Old Redis container found, removing...${NC}"
+    podman stop cloudcost-redis 2>/dev/null || true
+    podman rm -f cloudcost-redis 2>/dev/null || true
+    sleep 1
+fi
+
+# Check if it's running
+if podman ps | grep -q cloudcost-redis; then
+    echo -e "${YELLOW}⚠️  Redis container already running${NC}"
 else
-    # Container doesn't exist, create it
     podman run -d \
         --name cloudcost-redis \
         -p 6379:6379 \

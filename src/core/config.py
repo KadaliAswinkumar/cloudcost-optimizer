@@ -4,21 +4,13 @@ Loads settings from environment variables with sensible defaults.
 """
 
 from functools import lru_cache
-from typing import List, Optional, Any
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, field_validator, model_validator
+from typing import List, Optional
+from pydantic_settings import BaseSettings
+from pydantic import Field, field_validator
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
-    
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        # Don't try to parse env vars as JSON
-        env_parse_none_str='null'
-    )
     
     # Application
     app_name: str = Field(default="CloudCost Optimizer", env="APP_NAME")
@@ -72,19 +64,29 @@ class Settings(BaseSettings):
     rate_limit_requests: int = Field(default=100, env="RATE_LIMIT_REQUESTS")
     rate_limit_window: int = Field(default=60, env="RATE_LIMIT_WINDOW")
     
-    # CORS (stored as string, converted to list via property)
-    _cors_origins_str: str = Field(
-        default="http://localhost:5173,http://localhost:3000",
-        env="CORS_ORIGINS",
-        alias="cors_origins"
+    # CORS
+    cors_origins: List[str] = Field(
+        default=["http://localhost:5173", "http://localhost:3000"],
+        env="CORS_ORIGINS"
     )
     
-    @property
-    def cors_origins(self) -> List[str]:
-        """Parse CORS origins from comma-separated string."""
-        if isinstance(self._cors_origins_str, str):
-            return [origin.strip() for origin in self._cors_origins_str.split(',') if origin.strip()]
-        return ["http://localhost:5173", "http://localhost:3000"]
+    @field_validator('cors_origins', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Parse CORS origins from comma-separated string or JSON array."""
+        if isinstance(v, str):
+            # If it's a string, split by comma
+            return [origin.strip() for origin in v.split(',')]
+        return v
+    
+    @field_validator('cors_origins', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Parse CORS origins from comma-separated string or JSON list."""
+        if isinstance(v, str):
+            # If it's a string, split by comma
+            return [origin.strip() for origin in v.split(',') if origin.strip()]
+        return v
     
     # Logging
     log_level: str = Field(default="INFO", env="LOG_LEVEL")
@@ -98,6 +100,11 @@ class Settings(BaseSettings):
         "ap-northeast-2", "ap-northeast-3",
         "sa-east-1", "ca-central-1"
     ]
+    
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        case_sensitive = False
 
 
 @lru_cache()
