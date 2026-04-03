@@ -4,13 +4,21 @@ Loads settings from environment variables with sensible defaults.
 """
 
 from functools import lru_cache
-from typing import List, Optional
-from pydantic_settings import BaseSettings
-from pydantic import Field, field_validator
+from typing import List, Optional, Any
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, field_validator, model_validator
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
+    
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        # Don't try to parse env vars as JSON
+        env_parse_none_str='null'
+    )
     
     # Application
     app_name: str = Field(default="CloudCost Optimizer", env="APP_NAME")
@@ -91,11 +99,6 @@ class Settings(BaseSettings):
         "ap-northeast-2", "ap-northeast-3",
         "sa-east-1", "ca-central-1"
     ]
-    
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
 
 
 @lru_cache()
