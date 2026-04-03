@@ -15,23 +15,45 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Step 1: Check Python
+# Step 1: Check Python version (must be 3.11, 3.12, or 3.13)
 echo "📦 Step 1: Checking Python..."
-if ! command -v python3 &> /dev/null; then
-    echo -e "${RED}❌ Python3 not found!${NC}"
-    echo "Install Python 3.11+ from https://www.python.org/downloads/"
+
+# Try to find Python 3.11, 3.12, or 3.13
+PYTHON_CMD=""
+for cmd in python3.11 python3.12 python3.13 python3; do
+    if command -v $cmd &> /dev/null; then
+        VERSION=$($cmd --version 2>&1 | cut -d' ' -f2)
+        MAJOR=$(echo $VERSION | cut -d'.' -f1)
+        MINOR=$(echo $VERSION | cut -d'.' -f2)
+        
+        if [ "$MAJOR" = "3" ] && [ "$MINOR" -ge 11 ] && [ "$MINOR" -le 13 ]; then
+            PYTHON_CMD=$cmd
+            PYTHON_VERSION=$VERSION
+            break
+        fi
+    fi
+done
+
+if [ -z "$PYTHON_CMD" ]; then
+    echo -e "${RED}❌ Python 3.11, 3.12, or 3.13 not found!${NC}"
+    echo ""
+    echo "Your system has Python 3.14, but the packages don't support it yet."
+    echo ""
+    echo "Install Python 3.11 or 3.12:"
+    echo "  brew install python@3.11"
+    echo ""
+    echo "Then run this script again."
     exit 1
 fi
 
-PYTHON_VERSION=$(python3 --version | cut -d' ' -f2)
 echo -e "${GREEN}✅ Python $PYTHON_VERSION found${NC}"
 
 # Step 2: Create virtual environment
 echo ""
 echo "📦 Step 2: Setting up virtual environment..."
 if [ ! -d "venv" ]; then
-    python3 -m venv venv
-    echo -e "${GREEN}✅ Virtual environment created${NC}"
+    $PYTHON_CMD -m venv venv
+    echo -e "${GREEN}✅ Virtual environment created with $PYTHON_VERSION${NC}"
 else
     echo -e "${YELLOW}⚠️  Virtual environment already exists${NC}"
 fi
@@ -120,7 +142,7 @@ echo -e "${GREEN}✅ Database migrations completed${NC}"
 # Step 8: Test backend imports
 echo ""
 echo "🧪 Step 8: Testing backend imports..."
-python3 -c "
+$PYTHON_CMD -c "
 import sys
 sys.path.insert(0, 'src')
 try:
@@ -137,7 +159,7 @@ echo -e "${GREEN}✅ Backend imports working${NC}"
 # Step 9: Test database connection
 echo ""
 echo "🧪 Step 9: Testing database connection..."
-python3 -c "
+$PYTHON_CMD -c "
 import asyncio
 from src.core.database import init_db, close_db
 
@@ -157,7 +179,7 @@ echo -e "${GREEN}✅ Database connection working${NC}"
 # Step 10: Check Redis connection
 echo ""
 echo "🧪 Step 10: Testing Redis connection..."
-python3 -c "
+$PYTHON_CMD -c "
 import redis
 try:
     r = redis.from_url('redis://localhost:6379/0')
