@@ -34,11 +34,11 @@ A smart, AI-powered cloud cost optimization platform that helps you analyze, com
 ```
 
 **Access:**
-- Frontend: http://localhost:5173
+- Frontend: http://127.0.0.1:5174 (dedicated port — avoids **5173** if another app uses it)
 - Backend API: http://localhost:8000
 - API Docs: http://localhost:8000/docs
 
-**Important — local dev:** Start the API on **port 8000** (default in `start-backend.sh`). The Vite dev server proxies `/api` and `/health` to that URL, so the UI uses the **same origin** as the app and avoids “Network Error” / CORS issues. Do not set `VITE_API_URL` unless you intentionally call a remote API.
+**Important — local dev:** Start the API on **port 8000** (default in `start-backend.sh`). `start-backend.sh` also stops any stray listener on **8001**. The Vite dev server proxies `/api` and `/health` to the API. Do not set `VITE_API_URL` unless you intentionally call a remote API. Optional: set `VITE_UI_PORT` in `frontend/.env.local` to change the UI port.
 
 **CloudCost AI™ chat:** Add `GROQ_API_KEY` to your `.env` (free key from [Groq Console](https://console.groq.com/keys)). Without it, chat returns a configuration error instead of a reply.
 
@@ -230,7 +230,7 @@ podman logs cloudcost-redis
 ```bash
 # Find and kill process
 lsof -ti:8000 | xargs kill -9
-lsof -ti:5173 | xargs kill -9
+lsof -ti:5174 | xargs kill -9
 ```
 
 ### Database Issues

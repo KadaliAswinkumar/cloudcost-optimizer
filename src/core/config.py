@@ -74,7 +74,7 @@ class Settings(BaseSettings):
     # Comma-separated string — NOT List[str]. pydantic-settings tries json.loads() on
     # List fields from .env before validators run, which breaks "http://a,http://b".
     cors_origins: str = Field(
-        default="http://localhost:5173,http://localhost:3000",
+        default="http://localhost:5174,http://localhost:5173,http://localhost:3000",
     )
 
     log_level: str = Field(default="INFO")

@@ -58,7 +58,7 @@ echo ""
 
 # Test 3: Check frontend
 echo "🔍 Test 3: Testing Frontend..."
-if check_service "http://localhost:5173" "Frontend"; then
+if check_service "http://127.0.0.1:5174" "Frontend"; then
     echo "   Frontend is accessible"
 else
     echo -e "${YELLOW}⚠️  Frontend not running. Start with: ./start-frontend.sh${NC}"
