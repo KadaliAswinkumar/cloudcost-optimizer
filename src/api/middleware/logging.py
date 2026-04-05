@@ -45,26 +45,21 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             f"{f'?{query_params}' if query_params else ''}"
         )
         
-        # Try to log request body for POST/PUT/PATCH (not for files)
+        # Log JSON body for POST/PUT/PATCH — only call request.body() (no _receive patching).
+        # Starlette's BaseHTTPMiddleware caches the body on the request; replacing _receive
+        # breaks _CachedRequest and causes: RuntimeError: Unexpected message received: http.request
         if method in ["POST", "PUT", "PATCH"]:
             try:
                 content_type = request.headers.get("content-type", "")
                 if "application/json" in content_type:
-                    # Read body (need to make it readable again)
                     body = await request.body()
                     if body:
                         try:
                             body_json = json.loads(body.decode())
-                            # Mask sensitive fields
                             masked_body = self._mask_sensitive_data(body_json)
                             logger.info(f"[{request_id}] Request Body: {json.dumps(masked_body)}")
-                        except:
+                        except Exception:
                             logger.info(f"[{request_id}] Request Body: <non-json>")
-                    
-                    # Reconstruct request with body
-                    async def receive():
-                        return {"type": "http.request", "body": body}
-                    request._receive = receive
             except Exception as e:
                 logger.debug(f"[{request_id}] Could not read request body: {e}")
         

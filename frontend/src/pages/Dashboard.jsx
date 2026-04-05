@@ -22,7 +22,6 @@ export default function Dashboard() {
     { title: 'Regions', value: '...', subtitle: 'Global coverage', icon: Cloud },
     { title: 'Updated', value: 'Real-time', subtitle: 'Pricing data', icon: Zap },
   ])
-  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -63,10 +62,8 @@ export default function Dashboard() {
             icon: Zap 
           },
         ])
-        setLoading(false)
       } catch (error) {
         console.error('Failed to fetch stats:', error)
-        setLoading(false)
       }
     }
     
@@ -126,12 +123,7 @@ export default function Dashboard() {
         setQuickCompare(compareData)
       } catch (error) {
         console.error('Failed to fetch comparison:', error)
-        // Fallback to sample data
-        setQuickCompare([
-          { provider: 'aws', instance: 'm5.large', price: 0.096, region: 'us-east-1' },
-          { provider: 'gcp', instance: 'n2-standard-2', price: 0.097, region: 'us-central1' },
-          { provider: 'azure', instance: 'Standard_D2s_v4', price: 0.096, region: 'eastus' },
-        ])
+        setQuickCompare([])
       }
     }
     
@@ -228,7 +220,7 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {quickCompare.map((item, index) => (
+              {quickCompare.map((item) => (
                 <tr key={item.provider} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
                   <td className="py-4">
                     <CloudBadge provider={item.provider} size="sm" />

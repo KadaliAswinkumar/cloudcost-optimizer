@@ -68,6 +68,8 @@ async def test_list_instances_with_filters(client: AsyncClient, test_db):
     for inst in instances:
         inst.processor_architecture = "x86_64"
         inst.current_generation = True
+        inst.storage_type = "EBS-Only"
+        inst.network_performance = "Up to 5 Gigabit"
         test_db.add(inst)
     await test_db.commit()
     
@@ -169,6 +171,8 @@ async def test_recommendations_endpoint(client: AsyncClient, test_db):
         memory_gb=8.0,
         processor_architecture="x86_64",
         current_generation=True,
+        storage_type="EBS-Only",
+        network_performance="Up to 5 Gigabit",
     )
     test_db.add(instance)
     

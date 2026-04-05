@@ -1,13 +1,14 @@
 import axios from 'axios'
 
-// In dev: use same origin so Vite's proxy forwards /api → backend (avoids CORS + wrong port).
-// Production / GitHub Pages: set VITE_API_URL to your API (https://...).
+// In dev: same origin + Vite proxy → backend (no CORS).
+// Production: prefer VITE_API_URL at build time; if unset, use the public Render API so
+// `npm run build` / local previews still hit a live backend (GitHub Actions also sets VITE_API_URL).
+const DEFAULT_PRODUCTION_API = 'https://cloudcost-api.onrender.com'
 const API_BASE_URL =
   (import.meta.env.VITE_API_URL && String(import.meta.env.VITE_API_URL).trim()) ||
-  (import.meta.env.DEV ? '' : 'http://localhost:8000')
+  (import.meta.env.DEV ? '' : DEFAULT_PRODUCTION_API)
 
 if (import.meta.env.DEV) {
-  // eslint-disable-next-line no-console
   console.info('[api] baseURL:', API_BASE_URL || '(same-origin → Vite proxy)')
 }
 

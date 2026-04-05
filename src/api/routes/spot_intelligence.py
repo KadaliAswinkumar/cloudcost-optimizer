@@ -77,9 +77,6 @@ async def analyze_spot_instance(
             hours_per_month=request.hours_per_month
         )
         
-        if not analysis.get("success"):
-            raise HTTPException(status_code=404, detail=analysis.get("error", "Analysis failed"))
-        
         return analysis
         
     except HTTPException:
@@ -132,9 +129,6 @@ async def compare_spot_across_providers(
             hours_per_month=request.hours_per_month
         )
         
-        if not comparison.get("success"):
-            raise HTTPException(status_code=404, detail=comparison.get("error", "Comparison failed"))
-        
         return comparison
         
     except HTTPException:
@@ -175,7 +169,10 @@ async def quick_spot_check(
         )
         
         if not analysis.get("success"):
-            raise HTTPException(status_code=404, detail=analysis.get("error"))
+            return {
+                "success": False,
+                "error": analysis.get("error", "Analysis failed"),
+            }
         
         # Simplified response
         spot_analysis = analysis.get("spot_analysis", {})

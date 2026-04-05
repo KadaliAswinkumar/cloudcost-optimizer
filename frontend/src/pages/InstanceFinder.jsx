@@ -346,7 +346,7 @@ export default function InstanceFinder() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
-              {currentInstances.map((instance, index) => (
+              {currentInstances.map((instance) => (
                 <tr 
                   key={`${instance.provider}-${instance.instance_type}`}
                   className="hover:bg-slate-800/30 transition-colors cursor-pointer"

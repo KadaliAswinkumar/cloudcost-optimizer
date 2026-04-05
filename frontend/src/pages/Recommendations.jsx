@@ -8,7 +8,6 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
-  AlertTriangle,
   Shield,
   Info,
   ChevronLeft,
@@ -73,7 +72,13 @@ export default function Recommendations() {
       setCurrentPage(1) // Reset to page 1 when new recommendations are loaded
     } catch (err) {
       console.error('Error fetching recommendations:', err)
-      const errorMessage = err.response?.data?.detail || 'Failed to get recommendations. Please try again.'
+      const d = err.response?.data?.detail
+      const errorMessage =
+        typeof d === 'string'
+          ? d
+          : Array.isArray(d)
+            ? d.map((x) => x.msg || JSON.stringify(x)).join(' ')
+            : err.message || 'Failed to get recommendations. Please try again.'
       setError(errorMessage)
     } finally {
       setLoading(false)

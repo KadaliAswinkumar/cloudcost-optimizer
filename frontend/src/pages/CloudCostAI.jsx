@@ -132,7 +132,7 @@ What can I help you with today?`
         conversation_history: conversationHistory
       })
 
-      // Add AI response
+      // Add AI response (200 OK with success:false when GROQ/API misconfigured or model errors)
       if (response.data.success) {
         const aiMessage = {
           role: 'assistant',
@@ -140,7 +140,11 @@ What can I help you with today?`
         }
         setMessages(prev => [...prev, aiMessage])
       } else {
-        throw new Error(response.data.error || 'Failed to get response')
+        const detail = response.data.message || response.data.error || 'Failed to get response'
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `😕 ${detail}`
+        }])
       }
     } catch (err) {
       console.error('Chat error:', err)
@@ -163,7 +167,7 @@ Please try again or rephrase your question.`
     }
   }
 
-  const useSuggestion = (suggestion) => {
+  const applySuggestion = (suggestion) => {
     setInputMessage(suggestion)
     // Auto-send after a brief delay
     setTimeout(() => sendMessage(suggestion), 300)
@@ -301,7 +305,7 @@ Please try again or rephrase your question.`
               {suggestions.map((suggestion, idx) => (
                 <button
                   key={idx}
-                  onClick={() => useSuggestion(suggestion)}
+                  onClick={() => applySuggestion(suggestion)}
                   className="px-3 py-2 text-xs rounded-lg bg-slate-800/50 border border-slate-700 text-slate-300 hover:border-purple-500/50 hover:text-white transition-all"
                 >
                   {suggestion}

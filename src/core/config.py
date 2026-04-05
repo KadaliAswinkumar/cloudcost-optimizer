@@ -6,8 +6,12 @@ Loads settings from environment variables with sensible defaults.
 from functools import lru_cache
 from typing import List, Optional
 
+from dotenv import load_dotenv
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Load .env into os.environ so os.getenv() (used by some services) sees the same values as Settings.
+load_dotenv()
 
 
 def _default_aws_regions() -> List[str]:
@@ -39,7 +43,7 @@ class Settings(BaseSettings):
     secret_key: str = Field(default="dev-secret-key-CHANGE-IN-PRODUCTION")
 
     host: str = Field(default="0.0.0.0")
-    port: int = Field(default=8000)
+    port: int = Field(default=8801)
 
     database_url: str = Field(
         default="postgresql+asyncpg://postgres:postgres@localhost:5432/cloudcost",
@@ -65,6 +69,10 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("AWS_DEFAULT_REGION", "AWS_REGION"),
     )
 
+    # Groq (CloudCost AI™ chat) — set GROQ_API_KEY in .env or the host environment
+    groq_api_key: Optional[str] = Field(default=None, validation_alias="GROQ_API_KEY")
+    groq_model: Optional[str] = Field(default=None, validation_alias="GROQ_MODEL")
+
     celery_broker_url: str = Field(default="redis://localhost:6379/1")
     celery_result_backend: str = Field(default="redis://localhost:6379/2")
 
@@ -74,7 +82,7 @@ class Settings(BaseSettings):
     # Comma-separated string — NOT List[str]. pydantic-settings tries json.loads() on
     # List fields from .env before validators run, which breaks "http://a,http://b".
     cors_origins: str = Field(
-        default="http://localhost:5174,http://localhost:5173,http://localhost:3000",
+        default="http://localhost:8080,http://127.0.0.1:8080,http://localhost:3000",
     )
 
     log_level: str = Field(default="INFO")

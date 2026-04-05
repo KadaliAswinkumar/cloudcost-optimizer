@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react'
 import { 
   GitCompare, 
-  DollarSign,
   TrendingDown,
   Check,
   Info,
   Loader2
 } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import CloudBadge from '../components/CloudBadge'
 import { api } from '../api/client'
 
@@ -29,13 +28,11 @@ export default function PriceComparison() {
         
         for (const [provider, info] of Object.entries(data)) {
           if (provider !== 'cheapest_overall' && info.available) {
-            // Base on-demand price
             const onDemandMonthly = Math.round(info.monthly_price)
-            
-            // Estimate other pricing models based on typical cloud discounts
-            const spotPrice = Math.round(onDemandMonthly * 0.30) // ~70% discount
-            const reserved1yr = Math.round(onDemandMonthly * 0.65) // ~35% discount
-            const reserved3yr = Math.round(onDemandMonthly * 0.50) // ~50% discount
+            // Spot / reserved: only from database rows (no fabricated discounts)
+            const spotPrice = info.monthly_spot != null ? Math.round(info.monthly_spot) : null
+            const reserved1yr = info.monthly_reserved_1yr != null ? Math.round(info.monthly_reserved_1yr) : null
+            const reserved3yr = info.monthly_reserved_3yr != null ? Math.round(info.monthly_reserved_3yr) : null
             
             formattedData.push({
               provider,
@@ -55,10 +52,18 @@ export default function PriceComparison() {
         formattedData.sort((a, b) => a.onDemand - b.onDemand)
         
         setComparisonData(formattedData)
+        if (formattedData.length === 0) {
+          setError(
+            'No matching instances with on-demand pricing in the database for these requirements. ' +
+              'Ingest pricing (e.g. AWS/GCP/Azure fetch jobs) or widen specs.'
+          )
+        }
         setLoading(false)
       } catch (err) {
         console.error('Failed to fetch comparison:', err)
-        setError('Failed to load pricing comparison')
+        const d = err.response?.data?.detail
+        const msg = Array.isArray(d) ? d.map((x) => x.msg || x).join(' ') : (d || err.message)
+        setError(msg || 'Failed to load pricing comparison')
         setLoading(false)
       }
     }
@@ -69,19 +74,24 @@ export default function PriceComparison() {
   const chartData = comparisonData.map(item => ({
     name: item.name,
     'On-Demand': item.onDemand,
-    'Spot': item.spot,
-    '1-Year Reserved': item.reserved1yr,
-    '3-Year Reserved': item.reserved3yr,
+    'Spot': item.spot ?? null,
+    '1-Year Reserved': item.reserved1yr ?? null,
+    '3-Year Reserved': item.reserved3yr ?? null,
   }))
+
+  const hasSpot = comparisonData.some((i) => i.spot != null)
+  const hasR1 = comparisonData.some((i) => i.reserved1yr != null)
+  const hasR3 = comparisonData.some((i) => i.reserved3yr != null)
 
   const cheapest = comparisonData.length > 0 ? comparisonData.reduce((min, item) => 
     item.onDemand < min.onDemand ? item : min
   , comparisonData[0]) : null
 
-  // Calculate max savings: cheapest Spot vs most expensive On-Demand
   const maxSavings = comparisonData.length > 0 ? (() => {
-    const cheapestSpot = Math.min(...comparisonData.map(item => item.spot))
-    const mostExpensiveOnDemand = Math.max(...comparisonData.map(item => item.onDemand))
+    const spots = comparisonData.map((item) => item.spot).filter((v) => v != null && v > 0)
+    if (spots.length === 0) return 0
+    const cheapestSpot = Math.min(...spots)
+    const mostExpensiveOnDemand = Math.max(...comparisonData.map((item) => item.onDemand))
     return mostExpensiveOnDemand > 0 ? Math.round((1 - cheapestSpot / mostExpensiveOnDemand) * 100) : 0
   })() : 0
 
@@ -94,7 +104,7 @@ export default function PriceComparison() {
           Compare Clouds
         </h1>
         <p className="text-slate-400 mt-2">
-          Side-by-side pricing comparison across AWS, GCP, and Azure.
+          Side-by-side pricing from your ingested <code className="text-slate-500">cloud_pricing</code> data (on-demand required; spot/reserved only when loaded for that SKU and region).
         </p>
       </div>
 
@@ -199,9 +209,9 @@ export default function PriceComparison() {
                 formatter={(value) => [`$${value}/mo`, '']}
               />
               <Bar dataKey="On-Demand" fill="#64748b" radius={[0, 4, 4, 0]} />
-              <Bar dataKey="Spot" fill="#22c55e" radius={[0, 4, 4, 0]} />
-              <Bar dataKey="1-Year Reserved" fill="#3b82f6" radius={[0, 4, 4, 0]} />
-              <Bar dataKey="3-Year Reserved" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+              {hasSpot && <Bar dataKey="Spot" fill="#22c55e" radius={[0, 4, 4, 0]} />}
+              {hasR1 && <Bar dataKey="1-Year Reserved" fill="#3b82f6" radius={[0, 4, 4, 0]} />}
+              {hasR3 && <Bar dataKey="3-Year Reserved" fill="#8b5cf6" radius={[0, 4, 4, 0]} />}
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -210,9 +220,9 @@ export default function PriceComparison() {
         <div className="flex flex-wrap items-center justify-center gap-6 mt-4">
           {[
             { label: 'On-Demand', color: 'bg-slate-500' },
-            { label: 'Spot', color: 'bg-green-500' },
-            { label: '1-Year Reserved', color: 'bg-blue-500' },
-            { label: '3-Year Reserved', color: 'bg-purple-500' },
+            ...(hasSpot ? [{ label: 'Spot', color: 'bg-green-500' }] : []),
+            ...(hasR1 ? [{ label: '1-Year Reserved', color: 'bg-blue-500' }] : []),
+            ...(hasR3 ? [{ label: '3-Year Reserved', color: 'bg-purple-500' }] : []),
           ].map(item => (
             <div key={item.label} className="flex items-center gap-2">
               <div className={`w-3 h-3 rounded ${item.color}`} />
@@ -249,25 +259,43 @@ export default function PriceComparison() {
                     <span className="text-slate-500">/mo</span>
                   </td>
                   <td className="py-4 text-right">
-                    <span className="text-green-400">${item.spot}</span>
-                    <span className="text-slate-500">/mo</span>
-                    <span className="ml-2 text-xs text-green-400">
-                      -{Math.round((1 - item.spot/item.onDemand) * 100)}%
-                    </span>
+                    {item.spot != null ? (
+                      <>
+                        <span className="text-green-400">${item.spot}</span>
+                        <span className="text-slate-500">/mo</span>
+                        <span className="ml-2 text-xs text-green-400">
+                          -{Math.round((1 - item.spot/item.onDemand) * 100)}%
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-slate-500">—</span>
+                    )}
                   </td>
                   <td className="py-4 text-right">
-                    <span className="text-blue-400">${item.reserved1yr}</span>
-                    <span className="text-slate-500">/mo</span>
-                    <span className="ml-2 text-xs text-blue-400">
-                      -{Math.round((1 - item.reserved1yr/item.onDemand) * 100)}%
-                    </span>
+                    {item.reserved1yr != null ? (
+                      <>
+                        <span className="text-blue-400">${item.reserved1yr}</span>
+                        <span className="text-slate-500">/mo</span>
+                        <span className="ml-2 text-xs text-blue-400">
+                          -{Math.round((1 - item.reserved1yr/item.onDemand) * 100)}%
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-slate-500">—</span>
+                    )}
                   </td>
                   <td className="py-4 text-right">
-                    <span className="text-purple-400">${item.reserved3yr}</span>
-                    <span className="text-slate-500">/mo</span>
-                    <span className="ml-2 text-xs text-purple-400">
-                      -{Math.round((1 - item.reserved3yr/item.onDemand) * 100)}%
-                    </span>
+                    {item.reserved3yr != null ? (
+                      <>
+                        <span className="text-purple-400">${item.reserved3yr}</span>
+                        <span className="text-slate-500">/mo</span>
+                        <span className="ml-2 text-xs text-purple-400">
+                          -{Math.round((1 - item.reserved3yr/item.onDemand) * 100)}%
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-slate-500">—</span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -289,9 +317,11 @@ export default function PriceComparison() {
               we recommend <CloudBadge provider={cheapest.provider} size="sm" /> <strong>{cheapest.instance}</strong> 
               {' '}as the most cost-effective option at <strong>${cheapest.onDemand}/month</strong>.
             </p>
+            {maxSavings > 0 && (
             <p className="text-slate-400 text-sm mt-2">
-              💡 If your workload can tolerate interruptions, consider Spot instances for up to {maxSavings}% savings.
+              Spot savings (when DB has spot prices): up to {maxSavings}% vs on-demand in this comparison.
             </p>
+            )}
           </div>
         </div>
       </div>

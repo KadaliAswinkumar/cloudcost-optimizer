@@ -13,9 +13,9 @@ if [ ! -d "node_modules" ]; then
     npm install
 fi
 
-# CloudCost UI uses port 5174 by default (5173 is often taken by other Vite apps).
-# Override: VITE_UI_PORT in frontend/.env.local
-echo "🌐 Frontend starting on http://127.0.0.1:5174 (API proxied to :8000)"
+# CloudCost UI uses port 8080; API on 8801 (no 5xxx ports).
+# Override: VITE_UI_PORT / VITE_DEV_PROXY_TARGET in frontend/.env.local
+echo "🌐 Frontend starting on http://127.0.0.1:8080 (API proxied to :8801)"
 echo ""
 echo "Press Ctrl+C to stop"
 echo ""

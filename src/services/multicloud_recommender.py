@@ -287,11 +287,11 @@ class MultiCloudRecommender:
         
         instance_types = [i.instance_type for i in instances]
         
-        # Get pricing
+        # Load pricing for these instance types in ANY region. Restricting to a small default
+        # region list caused AWS (and others) to show N/A when rows only existed elsewhere.
         pricing_query = select(CloudPricing).where(
             CloudPricing.provider == provider,
             CloudPricing.instance_type.in_(instance_types),
-            CloudPricing.region.in_(regions),
         )
         result = await self.db.execute(pricing_query)
         all_pricing = result.scalars().all()
@@ -304,11 +304,42 @@ class MultiCloudRecommender:
                 pricing_map[key] = {}
             pricing_map[key][p.pricing_type] = p
         
-        # Build candidates
-        candidates = []
         instance_map = {i.instance_type: i for i in instances}
         
-        for (instance_type, region), pricing in pricing_map.items():
+        def _pick_region_for_instance(itype: str) -> Optional[Tuple[str, str]]:
+            """One region per instance: prefer defaults with on_demand, else cheapest on_demand."""
+            keys = [k for k in pricing_map if k[0] == itype]
+            if not keys:
+                return None
+            for pref in regions:
+                k = (itype, pref)
+                if k in pricing_map and pricing_map[k].get("on_demand"):
+                    return k
+            for pref in regions:
+                k = (itype, pref)
+                if k in pricing_map:
+                    return k
+            best_key = None
+            best_h = None
+            for k in keys:
+                od = pricing_map[k].get("on_demand")
+                if od:
+                    h = float(od.hourly_price)
+                    if best_h is None or h < best_h:
+                        best_h = h
+                        best_key = k
+            return best_key if best_key else keys[0]
+        
+        collapsed: Dict[Tuple[str, str], Dict] = {}
+        for itype in instance_map:
+            rk = _pick_region_for_instance(itype)
+            if rk:
+                collapsed[rk] = pricing_map[rk]
+        
+        # Build candidates
+        candidates = []
+        
+        for (instance_type, region), pricing in collapsed.items():
             instance = instance_map.get(instance_type)
             if not instance:
                 continue
@@ -337,6 +368,19 @@ class MultiCloudRecommender:
                 "reserved_1yr": reserved_1yr,
                 "reserved_3yr": reserved_3yr,
             })
+        
+        covered = {c["instance"].instance_type for c in candidates}
+        for itype, inst in instance_map.items():
+            if itype not in covered:
+                candidates.append({
+                    "provider": provider,
+                    "instance": inst,
+                    "region": regions[0] if regions else "us-east-1",
+                    "on_demand": None,
+                    "spot": None,
+                    "reserved_1yr": None,
+                    "reserved_3yr": None,
+                })
         
         return candidates
     

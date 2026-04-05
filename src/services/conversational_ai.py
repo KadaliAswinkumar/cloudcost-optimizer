@@ -13,6 +13,7 @@ from groq import AsyncGroq
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.models.cloud_provider import CloudInstance, CloudPricing
 
 logger = logging.getLogger(__name__)
@@ -129,13 +130,21 @@ Remember: A bad recommendation costs users money. Be precise, be accurate, be ex
 
     def __init__(self, db: AsyncSession):
         self.db = db
-        self.api_key = os.getenv("GROQ_API_KEY", "")
-        
+        # Prefer Settings (reads .env via pydantic-settings); fall back to os.environ after load_dotenv()
+        self.api_key = (settings.groq_api_key or os.getenv("GROQ_API_KEY", "") or "").strip()
+
         if not self.api_key:
             logger.warning("GROQ_API_KEY not set. Conversational AI will not work.")
             self.client = None
         else:
             self.client = AsyncGroq(api_key=self.api_key)
+        # Primary model from env; fallbacks if Groq returns model errors (e.g. deprecated id).
+        self._model_primary = (
+            settings.groq_model
+            or os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+            or "llama-3.3-70b-versatile"
+        ).strip()
+        self._model_fallbacks = ["llama-3.1-70b-versatile", "llama-3.1-8b-instant"]
     
     async def chat(
         self,
@@ -156,8 +165,9 @@ Remember: A bad recommendation costs users money. Be precise, be accurate, be ex
         """
         if not self.client:
             return {
+                "success": False,
                 "error": "AI service not configured. Please set GROQ_API_KEY environment variable.",
-                "message": "Get your free API key from: https://console.groq.com/keys"
+                "message": "Get your free API key from: https://console.groq.com/keys",
             }
         
         try:
@@ -184,21 +194,36 @@ Remember: A bad recommendation costs users money. Be precise, be accurate, be ex
                 # Streaming response (for real-time typing effect)
                 return await self._stream_response(messages)
             else:
-                # Regular response
-                response = await self.client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",  # Updated to latest model
-                    messages=messages,
-                    temperature=0.7,
-                    max_tokens=1024,
-                    top_p=0.9,
-                )
+                models_to_try = [self._model_primary]
+                for m in self._model_fallbacks:
+                    if m not in models_to_try:
+                        models_to_try.append(m)
+                last_err: Optional[Exception] = None
+                response = None
+                used_model = models_to_try[0]
+                for model in models_to_try:
+                    try:
+                        response = await self.client.chat.completions.create(
+                            model=model,
+                            messages=messages,
+                            temperature=0.7,
+                            max_tokens=1024,
+                            top_p=0.9,
+                        )
+                        used_model = model
+                        break
+                    except Exception as e:
+                        last_err = e
+                        logger.warning("Groq chat failed for model %s: %s", model, e)
+                if response is None:
+                    raise last_err if last_err else RuntimeError("Groq chat failed")
                 
                 ai_message = response.choices[0].message.content
                 
                 return {
                     "success": True,
                     "message": ai_message,
-                    "model": "llama-3.3-70b-versatile",
+                    "model": used_model,
                     "usage": {
                         "prompt_tokens": response.usage.prompt_tokens,
                         "completion_tokens": response.usage.completion_tokens,
@@ -217,14 +242,28 @@ Remember: A bad recommendation costs users money. Be precise, be accurate, be ex
     async def _stream_response(self, messages: List[Dict]) -> AsyncGenerator:
         """Stream the AI response word by word"""
         try:
-            stream = await self.client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=messages,
-                temperature=0.7,
-                max_tokens=1024,
-                top_p=0.9,
-                stream=True
-            )
+            models_to_try = [self._model_primary]
+            for m in self._model_fallbacks:
+                if m not in models_to_try:
+                    models_to_try.append(m)
+            stream = None
+            last_err: Optional[Exception] = None
+            for model in models_to_try:
+                try:
+                    stream = await self.client.chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        temperature=0.7,
+                        max_tokens=1024,
+                        top_p=0.9,
+                        stream=True
+                    )
+                    break
+                except Exception as e:
+                    last_err = e
+                    logger.warning("Groq stream failed for model %s: %s", model, e)
+            if stream is None:
+                raise last_err if last_err else RuntimeError("Groq stream failed")
             
             async for chunk in stream:
                 if chunk.choices[0].delta.content:

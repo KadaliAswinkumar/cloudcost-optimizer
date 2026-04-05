@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { 
   Zap, 
   DollarSign, 
@@ -23,13 +23,54 @@ export default function SpotIntelligence() {
   const [loading, setLoading] = useState(false)
   const [analysis, setAnalysis] = useState(null)
   const [error, setError] = useState(null)
+  const [allInstances, setAllInstances] = useState([])
+  const [loadingInstances, setLoadingInstances] = useState(true)
+  const [instancesError, setInstancesError] = useState(null)
   
   const [formData, setFormData] = useState({
     provider: 'aws',
-    instance_type: 'm5.xlarge',
+    instance_type: '',
     region: '',
     hours_per_month: 730
   })
+
+  // Same pattern as Cost Calculator: one catalog fetch, filter by provider client-side
+  useEffect(() => {
+    const loadInstances = async () => {
+      setLoadingInstances(true)
+      setInstancesError(null)
+      try {
+        const res = await api.getMulticloudInstances({ limit: 10000, offset: 0 })
+        setAllInstances(res.data?.instances || [])
+      } catch (e) {
+        console.error('Failed to load instance list:', e)
+        setAllInstances([])
+        setInstancesError('Could not load instance catalog. Check API and database.')
+      } finally {
+        setLoadingInstances(false)
+      }
+    }
+    loadInstances()
+  }, [])
+
+  const instancesForProvider = useMemo(() => {
+    return allInstances
+      .filter((i) => i.provider === formData.provider)
+      .sort((a, b) => {
+        if (a.vcpus !== b.vcpus) return a.vcpus - b.vcpus
+        return a.memory_gb - b.memory_gb
+      })
+  }, [allInstances, formData.provider])
+
+  // When switching provider or after catalog loads, ensure selected SKU exists (same as Cost Calculator)
+  useEffect(() => {
+    if (instancesForProvider.length === 0) return
+    setFormData((prev) => {
+      const ok = instancesForProvider.some((i) => i.instance_type === prev.instance_type)
+      if (ok) return prev
+      return { ...prev, instance_type: instancesForProvider[0].instance_type }
+    })
+  }, [formData.provider, instancesForProvider])
 
   const handleAnalyze = async (e) => {
     e.preventDefault()
@@ -44,6 +85,11 @@ export default function SpotIntelligence() {
         hours_per_month: parseInt(formData.hours_per_month)
       })
       
+      if (response.data && response.data.success === false) {
+        setAnalysis(null)
+        setError(response.data.error || 'Spot analysis could not run. Check that on-demand and spot prices exist in the database for this instance and region.')
+        return
+      }
       setAnalysis(response.data)
     } catch (err) {
       console.error('Error analyzing spot instance:', err)
@@ -114,7 +160,19 @@ export default function SpotIntelligence() {
                   <button
                     key={provider}
                     type="button"
-                    onClick={() => setFormData({ ...formData, provider })}
+                    onClick={() => {
+                      const forProv = allInstances
+                        .filter((i) => i.provider === provider)
+                        .sort((a, b) =>
+                          a.vcpus !== b.vcpus ? a.vcpus - b.vcpus : a.memory_gb - b.memory_gb
+                        )
+                      setFormData((prev) => ({
+                        ...prev,
+                        provider,
+                        instance_type:
+                          forProv.length > 0 ? forProv[0].instance_type : '',
+                      }))
+                    }}
                     className={`
                       px-3 py-2 rounded-lg border transition-all
                       ${formData.provider === provider
@@ -129,21 +187,39 @@ export default function SpotIntelligence() {
               </div>
             </div>
 
-            {/* Instance Type */}
+            {/* Instance Type — populated from your cloud_pricing / instance catalog */}
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Instance Type
+                Instance type
               </label>
-              <input
-                type="text"
-                value={formData.instance_type}
-                onChange={(e) => setFormData({ ...formData, instance_type: e.target.value })}
-                placeholder="e.g., m5.xlarge"
-                className="input-field font-mono"
-                required
-              />
+              {loadingInstances ? (
+                <div className="flex items-center gap-2 text-sm text-slate-400 py-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Loading instance catalog…
+                </div>
+              ) : instancesError ? (
+                <p className="text-sm text-amber-400">{instancesError}</p>
+              ) : instancesForProvider.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  No instances for this provider in the database. Run pricing sync or{' '}
+                  <code className="text-xs">scripts/seed_demo_cloud_data.py</code>.
+                </p>
+              ) : (
+                <select
+                  value={formData.instance_type}
+                  onChange={(e) => setFormData({ ...formData, instance_type: e.target.value })}
+                  className="input-field w-full"
+                  required
+                >
+                  {instancesForProvider.map((inst) => (
+                    <option key={inst.instance_type} value={inst.instance_type}>
+                      {inst.instance_type} ({inst.vcpus} vCPUs, {inst.memory_gb}GB RAM)
+                    </option>
+                  ))}
+                </select>
+              )}
               <p className="text-xs text-slate-500 mt-1">
-                AWS: m5, c5, r5 | GCP: n2, e2, c2 | Azure: D, E, F-series
+                {instancesForProvider.length} instances available for {formData.provider.toUpperCase()}
               </p>
             </div>
 
@@ -183,7 +259,7 @@ export default function SpotIntelligence() {
             {/* Analyze Button */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || loadingInstances || !formData.instance_type}
               className="btn-primary w-full"
             >
               {loading ? (

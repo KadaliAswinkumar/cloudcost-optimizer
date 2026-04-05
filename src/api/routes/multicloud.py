@@ -533,65 +533,99 @@ async def compare_pricing_across_clouds(
     
     try:
         comparison = {}
-        
+        spot_types = ("spot", "preemptible")
+        reserved_1yr_types = ("reserved_1yr", "committed_1yr")
+        reserved_3yr_types = ("reserved_3yr", "committed_3yr")
+
         for provider in ["aws", "gcp", "azure"]:
             try:
-                # Find matching instances with some tolerance
-                instance_query = select(CloudInstance).where(
-                    CloudInstance.provider == provider,
-                    CloudInstance.vcpus >= vcpus,
-                    CloudInstance.vcpus <= vcpus * 1.5,
-                    CloudInstance.memory_gb >= memory_gb,
-                    CloudInstance.memory_gb <= memory_gb * 1.5,
+                # Cheapest on-demand among instances that meet *minimum* vCPU/RAM (not a tight box).
+                # The old filter (vcpus <= 1.5x and memory <= 1.5x) excluded valid SKUs (e.g. 64 vCPU / 256 GB RAM).
+                join_query = (
+                    select(CloudPricing, CloudInstance)
+                    .join(
+                        CloudInstance,
+                        and_(
+                            CloudInstance.provider == CloudPricing.provider,
+                            CloudInstance.instance_type == CloudPricing.instance_type,
+                        ),
+                    )
+                    .where(
+                        CloudPricing.provider == provider,
+                        CloudPricing.pricing_type == "on_demand",
+                        CloudInstance.vcpus >= vcpus,
+                        CloudInstance.memory_gb >= memory_gb,
+                    )
+                    .order_by(CloudPricing.hourly_price.asc())
+                    .limit(1)
                 )
-                result = await db.execute(instance_query)
-                instances = result.scalars().all()
-                
-                if not instances:
-                    logger.info(f"No matching instances found for {provider}")
+                pricing_result = await db.execute(join_query)
+                row = pricing_result.one_or_none()
+                if not row:
+                    logger.info(f"No instance+on-demand match for {provider} at >= {vcpus} vCPU, {memory_gb} GB")
                     comparison[provider] = {"available": False}
                     continue
-                
-                instance_types = [i.instance_type for i in instances]
-                
-                # Get on-demand pricing with error handling
-                try:
-                    pricing_query = select(CloudPricing).where(
-                        CloudPricing.provider == provider,
-                        CloudPricing.instance_type.in_(instance_types),
-                        CloudPricing.pricing_type == "on_demand",
-                    ).order_by(CloudPricing.hourly_price).limit(1)
-                    
-                    pricing_result = await db.execute(pricing_query)
-                    cheapest = pricing_result.scalar_one_or_none()
-                except Exception as e:
-                    logger.error(f"Error fetching pricing for {provider}: {e}")
-                    cheapest = None
-                
-                if cheapest and cheapest.hourly_price is not None:
-                    try:
-                        instance = next((i for i in instances if i.instance_type == cheapest.instance_type), None)
-                        if instance:
-                            comparison[provider] = {
-                                "available": True,
-                                "cheapest_instance": cheapest.instance_type,
-                                "specs": {
-                                    "vcpus": instance.vcpus,
-                                    "memory_gb": float(instance.memory_gb) if instance.memory_gb else 0.0,
-                                },
-                                "region": cheapest.region or "unknown",
-                                "hourly_price": float(cheapest.hourly_price),
-                                "monthly_price": float(cheapest.hourly_price * 730),
-                            }
-                        else:
-                            comparison[provider] = {"available": False}
-                    except Exception as e:
-                        logger.error(f"Error building comparison for {provider}: {e}")
-                        comparison[provider] = {"available": False}
-                else:
-                    logger.info(f"No pricing found for {provider}")
+
+                cheapest, instance = row[0], row[1]
+                if not cheapest.hourly_price:
                     comparison[provider] = {"available": False}
-                    
+                    continue
+
+                region = cheapest.region or "unknown"
+                itype = cheapest.instance_type
+
+                # Same SKU + region: load spot / reserved from DB (no fabricated percentages).
+                alt_q = await db.execute(
+                    select(CloudPricing).where(
+                        CloudPricing.provider == provider,
+                        CloudPricing.instance_type == itype,
+                        CloudPricing.region == region,
+                    )
+                )
+                alt_rows = alt_q.scalars().all()
+                by_type = {p.pricing_type: p for p in alt_rows}
+
+                def _monthly(pt: str) -> Optional[float]:
+                    p = by_type.get(pt)
+                    if p and p.hourly_price is not None:
+                        return float(p.hourly_price) * 730.0
+                    return None
+
+                spot_m = None
+                for st in spot_types:
+                    if st in by_type and by_type[st].hourly_price is not None:
+                        m = _monthly(st)
+                        if m is not None and (spot_m is None or m < spot_m):
+                            spot_m = m
+
+                r1 = None
+                for rt in reserved_1yr_types:
+                    if rt in by_type:
+                        r1 = _monthly(rt)
+                        break
+
+                r3 = None
+                for rt in reserved_3yr_types:
+                    if rt in by_type:
+                        r3 = _monthly(rt)
+                        break
+
+                comparison[provider] = {
+                    "available": True,
+                    "cheapest_instance": itype,
+                    "specs": {
+                        "vcpus": instance.vcpus,
+                        "memory_gb": float(instance.memory_gb) if instance.memory_gb else 0.0,
+                    },
+                    "region": region,
+                    "hourly_price": float(cheapest.hourly_price),
+                    "monthly_price": float(cheapest.hourly_price) * 730.0,
+                    "monthly_spot": spot_m,
+                    "monthly_reserved_1yr": r1,
+                    "monthly_reserved_3yr": r3,
+                    "pricing_source": "database",
+                }
+
             except Exception as e:
                 logger.error(f"Error processing {provider}: {e}")
                 comparison[provider] = {"available": False, "error": str(e)}

@@ -47,8 +47,8 @@ echo ""
 
 # Test 2: Check backend health
 echo "🔍 Test 2: Testing Backend API..."
-if check_service "http://localhost:8000/health" "Backend"; then
-    HEALTH=$(curl -s http://localhost:8000/health)
+if check_service "http://localhost:8801/health" "Backend"; then
+    HEALTH=$(curl -s http://localhost:8801/health)
     echo "   Response: $HEALTH"
 else
     echo -e "${YELLOW}⚠️  Backend not running. Start with: ./start-backend.sh${NC}"
@@ -58,7 +58,7 @@ echo ""
 
 # Test 3: Check frontend
 echo "🔍 Test 3: Testing Frontend..."
-if check_service "http://127.0.0.1:5174" "Frontend"; then
+if check_service "http://127.0.0.1:8080" "Frontend"; then
     echo "   Frontend is accessible"
 else
     echo -e "${YELLOW}⚠️  Frontend not running. Start with: ./start-frontend.sh${NC}"
@@ -70,21 +70,21 @@ echo ""
 echo "🔍 Test 4: Testing API Endpoints..."
 
 # Test root endpoint
-if curl -s http://localhost:8000/ | grep -q "CloudCost"; then
+if curl -s http://localhost:8801/ | grep -q "CloudCost"; then
     echo -e "${GREEN}✅ Root endpoint working${NC}"
 else
     echo -e "${RED}❌ Root endpoint failed${NC}"
 fi
 
 # Test health endpoint
-if curl -s http://localhost:8000/health | grep -q "healthy"; then
+if curl -s http://localhost:8801/health | grep -q "healthy"; then
     echo -e "${GREEN}✅ Health endpoint working${NC}"
 else
     echo -e "${RED}❌ Health endpoint failed${NC}"
 fi
 
 # Test instances endpoint
-if curl -s "http://localhost:8000/api/v1/instances?limit=5" > /dev/null 2>&1; then
+if curl -s "http://localhost:8801/api/v1/instances?limit=5" > /dev/null 2>&1; then
     echo -e "${GREEN}✅ Instances endpoint working${NC}"
 else
     echo -e "${YELLOW}⚠️  Instances endpoint failed (may need data)${NC}"

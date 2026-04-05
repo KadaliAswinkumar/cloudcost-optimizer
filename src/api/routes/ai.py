@@ -221,9 +221,8 @@ async def chat_with_ai(
             stream=False
         )
         
-        if not result.get("success", False) and "error" in result:
-            raise HTTPException(status_code=500, detail=result["error"])
-        
+        # Return 200 with success/error in body so the UI can show GROQ/API messages
+        # without mapping HTTP 500 to a generic "detail" string (e.g. "Not Found" from Groq).
         return result
         
     except HTTPException:

@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { 
   Calculator, 
-  DollarSign, 
   Clock, 
   Calendar,
   Server,
@@ -46,6 +45,8 @@ export default function CostCalculator() {
       }
     }
     fetchInstances()
+    // Intentionally run once on mount; default instance is set when list loads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- config.provider used only for initial default
   }, [])
 
   // Get instances for selected provider

@@ -34,15 +34,33 @@ A smart, AI-powered cloud cost optimization platform that helps you analyze, com
 ```
 
 **Access:**
-- Frontend: http://127.0.0.1:5174 (dedicated port — avoids **5173** if another app uses it)
-- Backend API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
+- Frontend: http://127.0.0.1:8080
+- Backend API: http://localhost:8801
+- API Docs: http://localhost:8801/docs
 
-**Important — local dev:** Start the API on **port 8000** (default in `start-backend.sh`). `start-backend.sh` also stops any stray listener on **8001**. The Vite dev server proxies `/api` and `/health` to the API. Do not set `VITE_API_URL` unless you intentionally call a remote API. Optional: set `VITE_UI_PORT` in `frontend/.env.local` to change the UI port.
+**Important — local dev:** Start the API on **port 8801** (`start-backend.sh`). The Vite dev server is on **8080** and proxies `/api` and `/health` to the API. Do not set `VITE_API_URL` unless you intentionally call a remote API. Optional: set `VITE_UI_PORT` / `VITE_DEV_PROXY_TARGET` in `frontend/.env.local`.
 
 **CloudCost AI™ chat:** Add `GROQ_API_KEY` to your `.env` (free key from [Groq Console](https://console.groq.com/keys)). Without it, chat returns a configuration error instead of a reply.
 
 **Empty instance list:** Run `python scripts/seed_demo_cloud_data.py` after migrations, or use `./setup-local.sh` (seeds when the DB has fewer than 50 instances).
+
+### Documentation & API contract
+
+- **Technical docs index:** [docs/README.md](docs/README.md)
+- **API overview (routes + patterns):** [docs/API_REFERENCE.md](docs/API_REFERENCE.md)
+- **Repo layout:** [docs/REPOSITORY_STRUCTURE.md](docs/REPOSITORY_STRUCTURE.md)
+- **OpenAPI 3.1 JSON:** [docs/openapi.json](docs/openapi.json) (run `python scripts/export_openapi.py` after route changes)
+
+Interactive docs on a running server: `/docs`, `/redoc`, `/openapi.json`.
+
+### Verify before deploy
+
+```bash
+chmod +x scripts/verify_local.sh   # once
+./scripts/verify_local.sh
+```
+
+Runs `pytest`, frontend ESLint, and a production Vite build.
 
 ### Deploy to Render (Free Tier)
 
@@ -178,8 +196,8 @@ git push origin main
 ## API Documentation
 
 Interactive API docs available at:
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+- **Swagger UI**: http://localhost:8801/docs
+- **ReDoc**: http://localhost:8801/redoc
 
 ## Key Endpoints
 
@@ -229,8 +247,8 @@ podman logs cloudcost-redis
 ### Port Already in Use
 ```bash
 # Find and kill process
-lsof -ti:8000 | xargs kill -9
-lsof -ti:5174 | xargs kill -9
+lsof -ti:8801 | xargs kill -9
+lsof -ti:8080 | xargs kill -9
 ```
 
 ### Database Issues
