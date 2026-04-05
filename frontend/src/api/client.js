@@ -1,8 +1,15 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+// In dev: use same origin so Vite's proxy forwards /api → backend (avoids CORS + wrong port).
+// Production / GitHub Pages: set VITE_API_URL to your API (https://...).
+const API_BASE_URL =
+  (import.meta.env.VITE_API_URL && String(import.meta.env.VITE_API_URL).trim()) ||
+  (import.meta.env.DEV ? '' : 'http://localhost:8000')
 
-console.log('API Base URL:', API_BASE_URL)
+if (import.meta.env.DEV) {
+  // eslint-disable-next-line no-console
+  console.info('[api] baseURL:', API_BASE_URL || '(same-origin → Vite proxy)')
+}
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,

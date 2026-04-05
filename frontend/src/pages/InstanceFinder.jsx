@@ -47,7 +47,9 @@ export default function InstanceFinder() {
       try {
         setLoading(true)
         const response = await api.getMulticloudInstances({ limit: 5000 })
-        const instancesWithPrice = response.data.instances.map(instance => ({
+        const raw = response.data?.instances
+        const list = Array.isArray(raw) ? raw : []
+        const instancesWithPrice = list.map(instance => ({
           ...instance,
           price: instance.hourly_price || 0
         }))

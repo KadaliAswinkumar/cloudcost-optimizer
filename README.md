@@ -38,6 +38,12 @@ A smart, AI-powered cloud cost optimization platform that helps you analyze, com
 - Backend API: http://localhost:8000
 - API Docs: http://localhost:8000/docs
 
+**Important — local dev:** Start the API on **port 8000** (default in `start-backend.sh`). The Vite dev server proxies `/api` and `/health` to that URL, so the UI uses the **same origin** as the app and avoids “Network Error” / CORS issues. Do not set `VITE_API_URL` unless you intentionally call a remote API.
+
+**CloudCost AI™ chat:** Add `GROQ_API_KEY` to your `.env` (free key from [Groq Console](https://console.groq.com/keys)). Without it, chat returns a configuration error instead of a reply.
+
+**Empty instance list:** Run `python scripts/seed_demo_cloud_data.py` after migrations, or use `./setup-local.sh` (seeds when the DB has fewer than 50 instances).
+
 ### Deploy to Render (Free Tier)
 
 After testing locally:

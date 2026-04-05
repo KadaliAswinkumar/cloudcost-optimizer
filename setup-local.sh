@@ -151,6 +151,10 @@ echo "🔄 Step 7: Running database migrations..."
 alembic upgrade head
 echo -e "${GREEN}✅ Database migrations completed${NC}"
 
+echo ""
+echo "🌱 Seeding demo cloud data (skipped if DB already has 50+ instances)..."
+$PYTHON_CMD scripts/seed_demo_cloud_data.py || echo -e "${YELLOW}⚠️  Demo seed skipped or failed (optional)${NC}"
+
 # Step 8: Test backend imports
 echo ""
 echo "🧪 Step 8: Testing backend imports..."
