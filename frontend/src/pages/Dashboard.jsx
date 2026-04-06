@@ -16,6 +16,7 @@ import { api } from '../api/client'
 
 export default function Dashboard() {
   const [selectedCloud, setSelectedCloud] = useState('all')
+  const [statsError, setStatsError] = useState(null)
   const [stats, setStats] = useState([
     { title: 'Instance Types', value: '...', subtitle: 'Across all clouds', icon: Server },
     { title: 'Max Savings', value: '90%', subtitle: 'With Spot instances', icon: TrendingDown, trend: 'up', trendValue: 'vs On-Demand' },
@@ -26,6 +27,7 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
+        setStatsError(null)
         const provider = selectedCloud === 'all' ? null : selectedCloud
         const response = await api.get('/api/v1/multicloud/stats', {
           params: provider ? { provider } : {}
@@ -64,6 +66,37 @@ export default function Dashboard() {
         ])
       } catch (error) {
         console.error('Failed to fetch stats:', error)
+        setStatsError(
+          'Live stats could not be loaded (network or CORS). On Render, set CORS_ORIGINS to include your GitHub Pages origin — use https://youruser.github.io only (no /repo path).'
+        )
+        setStats([
+          {
+            title: 'Instance Types',
+            value: '—',
+            subtitle: 'Could not load from API',
+            icon: Server,
+          },
+          {
+            title: 'Max Savings',
+            value: '90%',
+            subtitle: 'With Spot instances',
+            icon: TrendingDown,
+            trend: 'up',
+            trendValue: 'vs On-Demand',
+          },
+          {
+            title: 'Regions',
+            value: '—',
+            subtitle: 'Could not load from API',
+            icon: Cloud,
+          },
+          {
+            title: 'Updated',
+            value: 'Real-time',
+            subtitle: 'Pricing data',
+            icon: Zap,
+          },
+        ])
       }
     }
     
@@ -164,6 +197,15 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {statsError && (
+        <div
+          role="alert"
+          className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/95 max-w-3xl mx-auto"
+        >
+          {statsError}
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

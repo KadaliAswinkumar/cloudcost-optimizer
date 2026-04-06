@@ -109,6 +109,14 @@ cd frontend && npm run lint && npm run build
 
 Production checklist: `CORS_ORIGINS` includes your Pages origin (`https://<user>.github.io`), `SECRET_KEY` set, `DEBUG=false`, `ENVIRONMENT=production`.
 
+**GitHub Pages → Render API:** The dashboard calls the API from the browser. If stats stay on `...` or show an error banner, open DevTools → Network: the `/api/v1/multicloud/stats` request is usually **blocked by CORS**. On the Render web service, set `CORS_ORIGINS` to a comma-separated list (no spaces) that includes **`https://<github-username>.github.io` exactly** — not `https://<user>.github.io/<repo>`, because the browser’s `Origin` header never includes the repo path. Redeploy the API after changing env vars.
+
+Sanity check from a terminal (should list `access-control-allow-origin` when the origin is allowed):
+
+```bash
+curl -sI -H "Origin: https://YOURUSER.github.io" "https://YOUR-API.onrender.com/api/v1/multicloud/stats" | grep -i access-control
+```
+
 ---
 
 ## Security notes

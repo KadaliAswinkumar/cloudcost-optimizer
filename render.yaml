@@ -28,8 +28,9 @@ services:
       # CloudCost AI™ (Groq) — create in dashboard: https://console.groq.com/keys
       - key: GROQ_API_KEY
         sync: false
+      # Include every origin that loads the UI in a browser (Pages = https://<user>.github.io, no repo path).
       - key: CORS_ORIGINS
-        value: http://localhost:8080,http://127.0.0.1:8080,http://localhost:3000,https://cloudcost-app.onrender.com
+        value: http://localhost:8080,http://127.0.0.1:8080,http://localhost:3000,https://cloudcost-app.onrender.com,https://kadaliaswinkumar.github.io
       # Lean data fetch (default in scripts). Use DATA_FETCH_PROFILE=full only on larger instances.
       - key: DATA_FETCH_PROFILE
         value: lean
