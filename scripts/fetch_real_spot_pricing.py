@@ -25,6 +25,18 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _full_fetch() -> bool:
+    """Set DATA_FETCH_PROFILE=full for maximum coverage (high RAM / long runs)."""
+    return os.getenv("DATA_FETCH_PROFILE", "").strip().lower() == "full"
+
+
+def _int_env(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+
+
 async def fetch_aws_real_spot_prices() -> List[Dict]:
     """
     Fetch REAL AWS spot prices using boto3 describe_spot_price_history
@@ -54,15 +66,33 @@ async def fetch_aws_real_spot_prices() -> List[Dict]:
                 select(distinct(CloudInstance.instance_type))
                 .where(CloudInstance.provider == "aws")
             )
-            instance_types = [row[0] for row in result.fetchall()]
+            instance_types = sorted({row[0] for row in result.fetchall()})
         
-        logger.info(f"Found {len(instance_types)} AWS instance types to fetch spot prices for")
+        # Lean mode (default): cap types + regions so deploy fits ~512Mi and finishes quickly
+        max_types = _int_env("MAX_AWS_INSTANCE_TYPES_FOR_SPOT", 99999 if _full_fetch() else 450)
+        if len(instance_types) > max_types:
+            instance_types = instance_types[:max_types]
+            logger.info(
+                "Limiting AWS spot fetch to %s instance types (set DATA_FETCH_PROFILE=full for all)",
+                max_types,
+            )
         
-        # AWS regions to check
-        regions = [
-            'us-east-1', 'us-east-2', 'us-west-1', 'us-west-2',
-            'eu-west-1', 'eu-central-1', 'ap-southeast-1', 'ap-northeast-1'
-        ]
+        logger.info(f"Fetching spot for {len(instance_types)} AWS instance types")
+        
+        if _full_fetch():
+            regions = [
+                "us-east-1", "us-east-2", "us-west-1", "us-west-2",
+                "eu-west-1", "eu-central-1", "ap-southeast-1", "ap-northeast-1",
+            ]
+        else:
+            regions = [
+                r.strip()
+                for r in os.getenv(
+                    "AWS_SPOT_REGIONS_LEAN",
+                    "us-east-1,us-west-2,eu-west-1,ap-south-1",
+                ).split(",")
+                if r.strip()
+            ]
         
         spot_prices = []
         
@@ -180,6 +210,11 @@ async def fetch_gcp_real_spot_prices() -> List[Dict]:
         
         logger.info(f"Found {len(on_demand_prices)} GCP on-demand prices")
         
+        max_gcp = _int_env("MAX_GCP_PREEMPTIBLE_ROWS", 999999 if _full_fetch() else 1200)
+        if len(on_demand_prices) > max_gcp:
+            on_demand_prices = on_demand_prices[:max_gcp]
+            logger.info("Limiting GCP preemptible rows to %s (lean fetch)", max_gcp)
+        
         for od_price in on_demand_prices:
             # Apply GCP's documented 70% discount
             preemptible_hourly = od_price.hourly_price * PREEMPTIBLE_DISCOUNT
@@ -243,8 +278,9 @@ async def fetch_azure_real_spot_prices() -> List[Dict]:
                 instance_regions[od.instance_type] = []
             instance_regions[od.instance_type].append((od.region, od.zone))
         
+        max_azure_skus = _int_env("MAX_AZURE_SPOT_API_SKUS", 80 if _full_fetch() else 45)
         async with httpx.AsyncClient(timeout=30.0) as client:
-            for instance_type, regions in list(instance_regions.items())[:50]:  # Limit for speed
+            for instance_type, regions in list(instance_regions.items())[:max_azure_skus]:
                 try:
                     # Query Azure API for spot prices
                     # armSkuName is the instance type
@@ -286,12 +322,17 @@ async def fetch_azure_real_spot_prices() -> List[Dict]:
                     logger.warning(f"Failed to fetch Azure spot price for {instance_type}: {e}")
                     continue
         
-        # Fallback: If Azure API didn't return enough data, use documented 60-80% discount
+        # Fallback: If Azure API didn't return enough data, use documented discount (capped in lean mode)
+        max_azure_fallback = _int_env("MAX_AZURE_SPOT_FALLBACK_ROWS", 999999 if _full_fetch() else 600)
         if len(spot_prices) < len(on_demand_prices) * 0.3:
-            logger.warning("⚠️  Azure Retail API returned limited data. Using documented 70% discount for remaining instances.")
+            logger.warning(
+                "⚠️  Azure Retail API returned limited data. Using documented 70%% discount for remaining rows (max %s).",
+                max_azure_fallback,
+            )
             
             SPOT_DISCOUNT = Decimal('0.30')  # 70% off
             existing_types = {sp['instance_type'] for sp in spot_prices}
+            added_fb = 0
             
             for od_price in on_demand_prices:
                 if od_price.instance_type not in existing_types:
@@ -310,6 +351,9 @@ async def fetch_azure_real_spot_prices() -> List[Dict]:
                         'effective_date': datetime.utcnow(),
                         'source': 'Azure Documented Rate (70% off)'
                     })
+                    added_fb += 1
+                    if added_fb >= max_azure_fallback:
+                        break
         
         logger.info(f"✅ Fetched {len(spot_prices)} Azure spot prices")
         return spot_prices
@@ -331,6 +375,10 @@ async def main():
     print("\n" + "="*70)
     print("⚡ FETCHING REAL SPOT/PREEMPTIBLE PRICING")
     print("="*70)
+    if _full_fetch():
+        print("📦 Profile: FULL (DATA_FETCH_PROFILE=full) — large dataset, needs more RAM/time")
+    else:
+        print("📦 Profile: LEAN (default) — sized for Render free tier; set DATA_FETCH_PROFILE=full for max coverage")
     print("🔍 Sources:")
     print("   • AWS: boto3 describe_spot_price_history (Real-time API)")
     print("   • GCP: Documented 70% discount (Official rate)")
@@ -360,24 +408,39 @@ async def main():
     
     # AWS (Real API)
     aws_prices = await fetch_aws_real_spot_prices()
-    all_spot_prices.extend(aws_prices)
-    stats["aws_spot"] = len(aws_prices)
-    
     # GCP (Documented rate)
     gcp_prices = await fetch_gcp_real_spot_prices()
-    all_spot_prices.extend(gcp_prices)
-    stats["gcp_preemptible"] = len(gcp_prices)
-    
     # Azure (Real API with fallback)
     azure_prices = await fetch_azure_real_spot_prices()
+
+    if not _full_fetch():
+        # Per-provider caps so lean deploys keep all three clouds represented (~2–3k total)
+        aws_prices = aws_prices[: _int_env("MAX_AWS_SPOT_ROWS", 1200)]
+        gcp_prices = gcp_prices[: _int_env("MAX_GCP_SPOT_ROWS", 800)]
+        azure_prices = azure_prices[: _int_env("MAX_AZURE_SPOT_ROWS", 800)]
+
+    all_spot_prices.extend(aws_prices)
+    stats["aws_spot"] = len(aws_prices)
+    all_spot_prices.extend(gcp_prices)
+    stats["gcp_preemptible"] = len(gcp_prices)
     all_spot_prices.extend(azure_prices)
     stats["azure_spot"] = len(azure_prices)
+
+    max_total = _int_env("MAX_TOTAL_SPOT_ROWS", 999999 if _full_fetch() else 2800)
+    if len(all_spot_prices) > max_total:
+        logger.info(
+            "Capping total spot/preemptible rows from %s to %s",
+            len(all_spot_prices),
+            max_total,
+        )
+        all_spot_prices = all_spot_prices[:max_total]
     
     stats["total"] = len(all_spot_prices)
     
-    # 3. Bulk insert spot pricing using UPSERT
+    # 3. Bulk insert spot pricing using UPSERT (chunked to avoid OOM on 512Mi hosts)
     if all_spot_prices:
-        print(f"\n💾 Inserting {len(all_spot_prices)} spot prices...")
+        batch_size = _int_env("MAX_SPOT_INSERT_BATCH", 400)
+        print(f"\n💾 Inserting {len(all_spot_prices)} spot prices in batches of {batch_size}...")
         async with get_db_context() as db:
             from sqlalchemy.dialects.postgresql import insert
             
@@ -391,20 +454,19 @@ async def main():
                     price['updated_at'] = datetime.utcnow()
             
             try:
-                # Use UPSERT to handle duplicates gracefully
-                # The unique constraint is: provider, instance_type, region, zone, pricing_type, os_type
-                stmt = insert(CloudPricing).values(all_spot_prices)
-                stmt = stmt.on_conflict_do_update(
-                    index_elements=['provider', 'instance_type', 'region', 'zone', 'pricing_type', 'os_type'],
-                    set_={
-                        'hourly_price': stmt.excluded.hourly_price,
-                        'monthly_price': stmt.excluded.monthly_price,
-                        'effective_date': stmt.excluded.effective_date,
-                        'updated_at': stmt.excluded.updated_at,
-                    }
-                )
-                
-                await db.execute(stmt)
+                for offset in range(0, len(all_spot_prices), batch_size):
+                    chunk = all_spot_prices[offset : offset + batch_size]
+                    stmt = insert(CloudPricing).values(chunk)
+                    stmt = stmt.on_conflict_do_update(
+                        index_elements=['provider', 'instance_type', 'region', 'zone', 'pricing_type', 'os_type'],
+                        set_={
+                            'hourly_price': stmt.excluded.hourly_price,
+                            'monthly_price': stmt.excluded.monthly_price,
+                            'effective_date': stmt.excluded.effective_date,
+                            'updated_at': stmt.excluded.updated_at,
+                        }
+                    )
+                    await db.execute(stmt)
                 await db.commit()
                 logger.info(f"✅ Upserted {len(all_spot_prices)} spot prices into cloud_pricing table")
                 

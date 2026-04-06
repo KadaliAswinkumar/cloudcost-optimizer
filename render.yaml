@@ -30,6 +30,9 @@ services:
         sync: false
       - key: CORS_ORIGINS
         value: http://localhost:8080,http://127.0.0.1:8080,http://localhost:3000,https://cloudcost-app.onrender.com
+      # Lean data fetch (default in scripts). Use DATA_FETCH_PROFILE=full only on larger instances.
+      - key: DATA_FETCH_PROFILE
+        value: lean
 
   # Frontend Static Site
   - type: web

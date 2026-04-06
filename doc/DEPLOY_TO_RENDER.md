@@ -57,6 +57,7 @@ Auto-deploy: enable “auto-deploy” on `main` in each service’s settings if 
 - Web services may **sleep** after idle time; first request can be slow.
 - PostgreSQL free tier limits change over time — check Render’s docs.
 - **No Redis**: response caching is off; the product still works.
+- If your **start command** runs `fetch_real_data.py` / `fetch_real_spot_pricing.py`, leave **`DATA_FETCH_PROFILE`** unset or set to **`lean`** (default in repo). That limits regions and spot rows (~2–3k) and batched inserts so the deploy fits **512Mi** RAM. Use **`DATA_FETCH_PROFILE=full`** only on a paid/larger instance.
 
 ---
 

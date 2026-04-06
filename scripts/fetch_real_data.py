@@ -6,10 +6,15 @@ Fetches live pricing from AWS, GCP, and Azure APIs
 
 import asyncio
 import logging
+import os
 import sys
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict
+
+
+def _full_fetch() -> bool:
+    return os.getenv("DATA_FETCH_PROFILE", "").strip().lower() == "full"
 
 # Add project root to path so we can import src modules
 # This handles the case where script is run from /opt/render/project/src
@@ -37,7 +42,11 @@ async def main():
     
     print("\n" + "="*70)
     print("🌐 FETCHING REAL CLOUD PRICING DATA")
-    print("="*70 + "\n")
+    print("="*70)
+    if _full_fetch():
+        print("📦 Profile: FULL — all regions (slower, larger DB)\n")
+    else:
+        print("📦 Profile: LEAN (default) — fewer regions for fast/cheap deploy; DATA_FETCH_PROFILE=full for max coverage\n")
     
     stats = {
         "aws": {"instances": 0, "pricing": 0},
@@ -97,19 +106,21 @@ async def main():
             await db.commit()
             logger.info("Cleared existing GCP pricing")
         
-        # Fetch pricing for multiple regions (expanded for MORE coverage)
-        gcp_regions = [
-            # US regions
-            "us-central1", "us-east1", "us-east4", "us-west1", "us-west2", "us-west3", "us-west4",
-            # Europe regions
-            "europe-west1", "europe-west2", "europe-west3", "europe-west4", "europe-west6",
-            "europe-north1", "europe-central2",
-            # Asia regions
-            "asia-east1", "asia-east2", "asia-northeast1", "asia-northeast2", "asia-northeast3",
-            "asia-south1", "asia-south2", "asia-southeast1", "asia-southeast2",
-            # Other regions
-            "australia-southeast1", "southamerica-east1", "northamerica-northeast1"
-        ]
+        # Lean (default): fewer regions = faster deploy + smaller DB; full: broad coverage
+        if _full_fetch():
+            gcp_regions = [
+                "us-central1", "us-east1", "us-east4", "us-west1", "us-west2", "us-west3", "us-west4",
+                "europe-west1", "europe-west2", "europe-west3", "europe-west4", "europe-west6",
+                "europe-north1", "europe-central2",
+                "asia-east1", "asia-east2", "asia-northeast1", "asia-northeast2", "asia-northeast3",
+                "asia-south1", "asia-south2", "asia-southeast1", "asia-southeast2",
+                "australia-southeast1", "southamerica-east1", "northamerica-northeast1",
+            ]
+        else:
+            gcp_regions = [
+                "us-central1", "us-east1", "europe-west1", "asia-south1",
+                "australia-southeast1", "southamerica-east1",
+            ]
         
         for region in gcp_regions:
             pricing_data = await gcp_fetcher.fetch_pricing(region)
@@ -191,20 +202,21 @@ async def main():
             await db.commit()
             logger.info("Cleared existing Azure pricing")
         
-        # Fetch pricing for multiple regions (expanded for MORE coverage)
-        azure_regions = [
-            # US regions
-            "eastus", "eastus2", "centralus", "northcentralus", "southcentralus",
-            "westus", "westus2", "westus3", "westcentralus",
-            # Europe regions
-            "northeurope", "westeurope", "francecentral", "germanywestcentral",
-            "norwayeast", "switzerlandnorth", "uksouth", "ukwest",
-            # Asia regions
-            "eastasia", "southeastasia", "japaneast", "japanwest", "koreacentral",
-            "southindia", "centralindia", "westindia",
-            # Other regions  
-            "australiaeast", "australiasoutheast", "brazilsouth", "canadacentral", "canadaeast"
-        ]
+        if _full_fetch():
+            azure_regions = [
+                "eastus", "eastus2", "centralus", "northcentralus", "southcentralus",
+                "westus", "westus2", "westus3", "westcentralus",
+                "northeurope", "westeurope", "francecentral", "germanywestcentral",
+                "norwayeast", "switzerlandnorth", "uksouth", "ukwest",
+                "eastasia", "southeastasia", "japaneast", "japanwest", "koreacentral",
+                "southindia", "centralindia", "westindia",
+                "australiaeast", "australiasoutheast", "brazilsouth", "canadacentral", "canadaeast",
+            ]
+        else:
+            azure_regions = [
+                "eastus", "westus2", "northeurope", "centralindia",
+                "australiaeast", "brazilsouth",
+            ]
         
         for region in azure_regions:
             pricing_data = await azure_fetcher.fetch_pricing(region)
@@ -285,8 +297,10 @@ async def main():
         logger.error(f"AWS instance fetch error: {e}")
         print(f"⚠️  AWS instance fetch had errors (continuing to pricing...)")
     
-    # Fetch pricing for multiple regions - ALWAYS TRY even if instances failed
-    aws_regions = ["us-east-1", "us-west-2", "eu-west-1", "ap-south-1", "eu-central-1"]
+    if _full_fetch():
+        aws_regions = ["us-east-1", "us-west-2", "eu-west-1", "ap-south-1", "eu-central-1"]
+    else:
+        aws_regions = ["us-east-1", "us-west-2", "eu-west-1"]
     
     # Clear existing AWS pricing to avoid duplicates
     async with get_db_context() as db:
