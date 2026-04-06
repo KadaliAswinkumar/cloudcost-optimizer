@@ -119,6 +119,7 @@ All documentation is in the `doc/` directory:
 - **[QUICK_START.md](doc/QUICK_START.md)** - 5-minute quick start
 - **[LOCAL_DEVELOPMENT.md](doc/LOCAL_DEVELOPMENT.md)** - Complete local dev guide
 - **[DEPLOY_TO_RENDER.md](doc/DEPLOY_TO_RENDER.md)** - Deployment guide
+- **[GITHUB_PAGES.md](doc/GITHUB_PAGES.md)** - Frontend on GitHub Pages (API on Render)
 - **[RENDER_QUICKSTART.md](doc/RENDER_QUICKSTART.md)** - Quick deployment
 
 ## Prerequisites

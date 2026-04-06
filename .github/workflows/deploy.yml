@@ -1,10 +1,15 @@
-# GitHub Actions workflow to deploy frontend to GitHub Pages
+# Deploy Vite frontend to GitHub Pages (project site: /cloudcost-optimizer/).
+# Repo → Settings → Pages → Build: GitHub Actions.
+# Optional: Settings → Variables → Actions → VITE_API_URL (override Render API URL).
 name: Deploy to GitHub Pages
 
 on:
   push:
     branches:
       - main
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
 permissions:
@@ -37,10 +42,14 @@ jobs:
           
       - name: Build
         env:
-          VITE_API_URL: https://cloudcost-api.onrender.com
+          # Repository variable VITE_API_URL overrides; else your live Render API
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
         run: |
           cd frontend
+          export VITE_API_URL="${VITE_API_URL:-https://cloudcost-api-3uy5.onrender.com}"
           npm run build
+          # SPA: GitHub Pages serves 404.html for unknown paths (already in public/)
+          test -f dist/404.html || cp dist/index.html dist/404.html
           
       - name: Setup Pages
         uses: actions/configure-pages@v4

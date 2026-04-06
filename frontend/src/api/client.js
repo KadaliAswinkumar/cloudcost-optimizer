@@ -1,9 +1,9 @@
 import axios from 'axios'
 
 // In dev: same origin + Vite proxy → backend (no CORS).
-// Production: prefer VITE_API_URL at build time; if unset, use the public Render API so
-// `npm run build` / local previews still hit a live backend (GitHub Actions also sets VITE_API_URL).
-const DEFAULT_PRODUCTION_API = 'https://cloudcost-api.onrender.com'
+// Production: prefer VITE_API_URL at build time; if unset, use the deployed Render API.
+// Override via GitHub repo variable VITE_API_URL in the Pages workflow.
+const DEFAULT_PRODUCTION_API = 'https://cloudcost-api-3uy5.onrender.com'
 const API_BASE_URL =
   (import.meta.env.VITE_API_URL && String(import.meta.env.VITE_API_URL).trim()) ||
   (import.meta.env.DEV ? '' : DEFAULT_PRODUCTION_API)
