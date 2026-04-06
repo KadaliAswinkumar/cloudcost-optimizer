@@ -59,8 +59,21 @@ class Settings(BaseSettings):
             return v.replace("postgresql://", "postgresql+asyncpg://", 1)
         return v
 
-    redis_url: str = Field(default="redis://localhost:6379/0")
+    # Omit or leave empty on Render — caching and Redis rate limits are skipped (app still works).
+    redis_url: Optional[str] = Field(default=None)
     redis_cache_ttl: int = Field(default=3600)
+
+    @field_validator("redis_url", mode="before")
+    @classmethod
+    def normalize_redis_url(cls, v: object) -> Optional[str]:
+        if v is None:
+            return None
+        if isinstance(v, str):
+            s = v.strip()
+            if not s or s.lower() in ("none", "disabled", "-"):
+                return None
+            return s
+        return v
 
     aws_access_key_id: Optional[str] = Field(default=None)
     aws_secret_access_key: Optional[str] = Field(default=None)

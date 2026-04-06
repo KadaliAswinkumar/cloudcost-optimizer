@@ -24,8 +24,7 @@ services:
         fromDatabase:
           name: cloudcost-db
           property: connectionString
-      - key: REDIS_URL
-        sync: false
+      # Optional: set REDIS_URL only if you add Redis; app works without it.
       # CloudCost AI™ (Groq) — create in dashboard: https://console.groq.com/keys
       - key: GROQ_API_KEY
         sync: false
@@ -64,8 +63,6 @@ services:
         fromDatabase:
           name: cloudcost-db
           property: connectionString
-      - key: REDIS_URL
-        sync: false
       - key: AWS_REGION
         value: us-east-1
       - key: AWS_ACCESS_KEY_ID

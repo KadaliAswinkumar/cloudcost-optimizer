@@ -61,13 +61,8 @@ async def lifespan(app: FastAPI):
         logger.error(f"❌ Database initialization failed: {e}")
         logger.warning("⚠️  App will start anyway, but database features won't work")
     
-    # Initialize Redis
-    try:
-        await init_redis()
-        logger.info("✅ Redis cache initialized successfully")
-    except Exception as e:
-        logger.error(f"❌ Redis initialization failed: {e}")
-        logger.warning("⚠️  App will start anyway, but caching won't work")
+    # Initialize Redis when REDIS_URL is set (optional on Render)
+    await init_redis()
     
     logger.info(f"🚀 {settings.app_name} started successfully!")
     

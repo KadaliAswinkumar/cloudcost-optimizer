@@ -53,15 +53,22 @@ async def readiness_check(db: AsyncSession = Depends(get_db)) -> Dict:
     except Exception as e:
         checks["database_error"] = str(e)
     
-    # Check Redis
+    # Redis is optional (e.g. Render deploys without Redis)
+    redis_configured = bool(settings.redis_url)
     try:
-        if redis_client:
+        if not redis_configured:
+            checks["cache"] = "disabled"
+        elif redis_client:
             await redis_client.ping()
             checks["cache"] = True
+        else:
+            checks["cache"] = False
+            checks["cache_error"] = "not connected"
     except Exception as e:
         checks["cache_error"] = str(e)
-    
-    all_healthy = all([checks["database"], checks["cache"]])
+
+    cache_ok = (not redis_configured) or (checks.get("cache") is True)
+    all_healthy = checks["database"] and cache_ok
     
     return {
         "status": "ready" if all_healthy else "degraded",

@@ -20,10 +20,9 @@ https://render.com → Sign Up → Use GitHub → Authorize
    - Build: `pip install --upgrade pip && pip install -r requirements.txt`
    - Start: `alembic upgrade head && uvicorn src.api.main:app --host 0.0.0.0 --port $PORT`
    - Plan: **Free**
-4. Add these environment variables:
+4. Add these environment variables (no Redis required):
    ```
    DATABASE_URL = <from Render PostgreSQL - see below>
-   REDIS_URL = redis://default:<TOKEN>@<HOST>:6379
    SECRET_KEY = <run: openssl rand -base64 32>
    DEBUG = false
    ENVIRONMENT = production
@@ -65,7 +64,7 @@ https://render.com → Sign Up → Use GitHub → Authorize
 4. Click **Create Static Site**
 5. ✅ Wait 3 minutes → Frontend live!
 
-### 6. Update CORS (30 seconds)
+### 5. Update CORS (30 seconds)
 1. Go to backend service → **Environment**
 2. Update `CORS_ORIGINS`:
    ```

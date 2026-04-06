@@ -1,15 +1,19 @@
 """
 Redis Cache Service
 Provides caching functionality for API responses and price data.
+If REDIS_URL is unset, Redis is not used (fine for Render without Redis).
 """
 
 import json
+import logging
 from typing import Any, Optional
 from datetime import timedelta
 
 import redis.asyncio as redis
 
 from src.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class CacheService:
@@ -118,16 +122,29 @@ redis_client: Optional[redis.Redis] = None
 cache_service: Optional[CacheService] = None
 
 
-async def init_redis() -> redis.Redis:
-    """Initialize Redis connection."""
+async def init_redis() -> Optional[redis.Redis]:
+    """Initialize Redis when REDIS_URL is set; otherwise leave cache disabled."""
     global redis_client, cache_service
-    redis_client = redis.from_url(
-        settings.redis_url,
-        encoding="utf-8",
-        decode_responses=True
-    )
-    cache_service = CacheService(redis_client)
-    return redis_client
+    if not settings.redis_url:
+        redis_client = None
+        cache_service = None
+        logger.info("Redis disabled (no REDIS_URL) — API runs without cache")
+        return None
+    try:
+        redis_client = redis.from_url(
+            settings.redis_url,
+            encoding="utf-8",
+            decode_responses=True,
+        )
+        await redis_client.ping()
+        cache_service = CacheService(redis_client)
+        logger.info("Redis cache connected")
+        return redis_client
+    except Exception as e:
+        logger.warning("Redis unavailable (%s) — continuing without cache", e)
+        redis_client = None
+        cache_service = None
+        return None
 
 
 async def close_redis():
