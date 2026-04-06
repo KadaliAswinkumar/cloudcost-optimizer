@@ -1,330 +1,135 @@
 # CloudCost Optimizer
 
-A smart, AI-powered cloud cost optimization platform that helps you analyze, compare, and reduce your AWS cloud spending.
+**Multi-cloud instance catalog, pricing, spot intelligence, and AI-assisted cost Q&A** — FastAPI backend + React (Vite) UI.
 
-[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109-green.svg)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-18-blue.svg)](https://reactjs.org/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-
-## Features
-
-- **Multi-Cloud Comparison**: Compare instance types across AWS regions
-- **AI-Powered Recommendations**: Get intelligent cost-saving suggestions
-- **Spot Instance Intelligence**: Analyze spot pricing trends and interruption risks
-- **Real-time Price Analysis**: Live AWS pricing data integration
-- **Interactive Dashboard**: Beautiful, modern UI with real-time metrics
-
-## Quick Start
-
-### Local Development (Using Podman)
-
-```bash
-# 1. Setup environment (one time)
-./setup-local.sh
-
-# 2. Start backend (Terminal 1)
-./start-backend.sh
-
-# 3. Start frontend (Terminal 2)
-./start-frontend.sh
-
-# 4. Test everything (Terminal 3)
-./test-local.sh
-```
-
-**Access:**
-- Frontend: http://127.0.0.1:8080
-- Backend API: http://localhost:8801
-- API Docs: http://localhost:8801/docs
-
-**Important — local dev:** Start the API on **port 8801** (`start-backend.sh`). The Vite dev server is on **8080** and proxies `/api` and `/health` to the API. Do not set `VITE_API_URL` unless you intentionally call a remote API. Optional: set `VITE_UI_PORT` / `VITE_DEV_PROXY_TARGET` in `frontend/.env.local`.
-
-**CloudCost AI™ chat:** Add `GROQ_API_KEY` to your `.env` (free key from [Groq Console](https://console.groq.com/keys)). Without it, chat returns a configuration error instead of a reply.
-
-**Empty instance list:** Run `python scripts/seed_demo_cloud_data.py` after migrations, or use `./setup-local.sh` (seeds when the DB has fewer than 50 instances).
-
-### Documentation & API contract
-
-- **Technical docs index:** [docs/README.md](docs/README.md)
-- **API overview (routes + patterns):** [docs/API_REFERENCE.md](docs/API_REFERENCE.md)
-- **Repo layout:** [docs/REPOSITORY_STRUCTURE.md](docs/REPOSITORY_STRUCTURE.md)
-- **OpenAPI 3.1 JSON:** [docs/openapi.json](docs/openapi.json) (run `python scripts/export_openapi.py` after route changes)
-
-Interactive docs on a running server: `/docs`, `/redoc`, `/openapi.json`.
-
-### Verify before deploy
-
-```bash
-chmod +x scripts/verify_local.sh   # once
-./scripts/verify_local.sh
-```
-
-Runs `pytest`, frontend ESLint, and a production Vite build.
-
-### Deploy to Render (Free Tier)
-
-After testing locally:
-
-```bash
-git push origin main
-```
-
-Then go to Render dashboard → Click **"Deploy latest commit"**
-
-See `doc/DEPLOY_TO_RENDER.md` for detailed instructions.
-
-## Tech Stack
-
-### Backend
-- **FastAPI** - Modern Python web framework
-- **PostgreSQL** - Relational database
-- **Redis** - High-performance caching
-- **SQLAlchemy** - Powerful ORM
-- **Celery** - Background job processing
-
-### Frontend
-- **React** - Component-based UI
-- **Vite** - Lightning-fast build tool
-- **Tailwind CSS** - Utility-first styling
-- **Recharts** - Beautiful data visualizations
-
-## Project Structure
-
-```
-cloudcost-optimizer/
-├── src/              # Backend source code
-│   ├── api/          # FastAPI routes
-│   ├── models/       # Database models
-│   ├── services/     # Business logic
-│   └── core/         # Core utilities
-├── frontend/         # React frontend
-│   ├── src/
-│   │   ├── pages/    # React pages
-│   │   └── components/
-│   └── public/
-├── doc/              # Documentation
-├── scripts/          # Utility scripts
-├── setup-local.sh    # Local setup script
-├── start-backend.sh  # Start backend
-├── start-frontend.sh # Start frontend
-└── test-local.sh     # Test everything
-```
-
-## Documentation
-
-All documentation is in the `doc/` directory:
-
-- **[START_HERE.md](doc/START_HERE.md)** - Begin here!
-- **[QUICK_START.md](doc/QUICK_START.md)** - 5-minute quick start
-- **[LOCAL_DEVELOPMENT.md](doc/LOCAL_DEVELOPMENT.md)** - Complete local dev guide
-- **[DEPLOY_TO_RENDER.md](doc/DEPLOY_TO_RENDER.md)** - Deployment guide
-- **[GITHUB_PAGES.md](doc/GITHUB_PAGES.md)** - Frontend on GitHub Pages (API on Render)
-- **[RENDER_QUICKSTART.md](doc/RENDER_QUICKSTART.md)** - Quick deployment
-
-## Prerequisites
-
-- **Python 3.11+** - [Download](https://www.python.org/downloads/)
-- **Podman** - [Install](https://podman.io/getting-started/installation)
-- **Node.js 18+** - [Download](https://nodejs.org/)
-
-### Installing Podman (macOS)
-```bash
-brew install podman
-podman machine init
-podman machine start
-```
-
-## Environment Variables
-
-Copy `.env.example` to `.env` and configure:
-
-```bash
-# Application
-DEBUG=true
-ENVIRONMENT=development
-
-# Database (Local Podman)
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5433/cloudcost
-
-# Redis (Local Podman)
-REDIS_URL=redis://localhost:6379/0
-
-# AWS (Optional - for real pricing data)
-AWS_ACCESS_KEY_ID=your-key
-AWS_SECRET_ACCESS_KEY=your-secret
-AWS_REGION=us-east-1
-```
-
-## Development Workflow
-
-### Daily Development
-```bash
-# Start containers
-podman start cloudcost-postgres cloudcost-redis
-
-# Activate virtual environment
-source venv/bin/activate
-
-# Start backend (auto-reload enabled)
-./start-backend.sh
-
-# Start frontend (in another terminal)
-./start-frontend.sh
-```
-
-### After Code Changes
-```bash
-# Backend: Auto-reloads with --reload flag
-# Frontend: Auto-reloads with Vite HMR
-
-# If database models change:
-alembic revision --autogenerate -m "Description"
-alembic upgrade head
-```
-
-### Before Committing
-```bash
-# Test locally first!
-./test-local.sh
-
-# If all tests pass:
-git add .
-git commit -m "Your message"
-git push origin main
-```
-
-## API Documentation
-
-Interactive API docs available at:
-- **Swagger UI**: http://localhost:8801/docs
-- **ReDoc**: http://localhost:8801/redoc
-
-## Key Endpoints
-
-- `GET /health` - Health check
-- `GET /api/v1/instances` - List cloud instances
-- `GET /api/v1/instances/compare` - Compare instances
-- `POST /api/v1/recommendations` - Get cost optimization recommendations
-- `GET /api/v1/pricing/spot/history` - Spot price history
-- `POST /api/v1/ai/chat` - AI-powered cost analysis
-
-## Testing
-
-```bash
-# Run all tests
-./test-local.sh
-
-# Backend tests (when implemented)
-pytest
-
-# Frontend tests
-cd frontend && npm test
-
-# Code quality
-ruff check src/
-black src/
-cd frontend && npm run lint
-```
-
-## Troubleshooting
-
-### Podman Issues
-```bash
-# Check if podman machine is running
-podman machine list
-
-# Start podman machine
-podman machine start
-
-# Check running containers
-podman ps
-
-# View container logs
-podman logs cloudcost-postgres
-podman logs cloudcost-redis
-```
-
-### Port Already in Use
-```bash
-# Find and kill process
-lsof -ti:8801 | xargs kill -9
-lsof -ti:8080 | xargs kill -9
-```
-
-### Database Issues
-```bash
-# Reset database (WARNING: Deletes all data)
-podman exec -it cloudcost-postgres psql -U postgres -c "DROP DATABASE cloudcost; CREATE DATABASE cloudcost;"
-alembic upgrade head
-```
-
-See `doc/LOCAL_DEVELOPMENT.md` for detailed troubleshooting.
-
-## Deployment
-
-### Render (Recommended - Free Tier)
-
-1. Test locally: `./test-local.sh`
-2. Push to GitHub: `git push origin main`
-3. Go to Render dashboard
-4. Click **"Deploy latest commit"**
-
-**Cost: $0/month** (free tier)
-
-See `doc/DEPLOY_TO_RENDER.md` for complete guide.
-
-## Production Features
-
-✅ **Security**
-- Password hashing with bcrypt
-- JWT authentication
-- CORS protection
-- XSS prevention
-- SQL injection prevention
-
-✅ **Performance**
-- Redis caching
-- Database connection pooling
-- Async/await throughout
-- Query optimization
-
-✅ **Monitoring**
-- Structured JSON logging
-- Request/response logging
-- Health check endpoints
-- Error tracking
-
-## Contributing
-
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature-name`
-3. Test locally: `./test-local.sh`
-4. Commit changes: `git commit -am 'Add feature'`
-5. Push to branch: `git push origin feature-name`
-6. Create Pull Request
-
-## License
-
-MIT License - see LICENSE file for details
-
-## Support
-
-- 📖 Documentation: `doc/` directory
-- 🐛 Issues: GitHub Issues
-- 💬 Discussions: GitHub Discussions
-
-## Roadmap
-
-- [ ] Support for Azure and GCP
-- [ ] Cost forecasting with ML
-- [ ] Slack/Email notifications
-- [ ] Team collaboration features
-- [ ] Kubernetes cost optimization
-- [ ] Reserved instance recommendations
+[![React 18](https://img.shields.io/badge/React-18-blue.svg)](https://reactjs.org/)
+[![License MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+| Document | Purpose |
+|----------|---------|
+| **[PRD.md](PRD.md)** | Product scope, requirements, and changelog |
+| **[INVESTOR_PITCH.md](INVESTOR_PITCH.md)** | Slide-style narrative for fundraising |
+| **[docs/API.md](docs/API.md)** | How to read the API spec |
+| **[docs/openapi.json](docs/openapi.json)** | OpenAPI 3 schema (`python scripts/export_openapi.py` to refresh) |
 
 ---
 
-**Made with ❤️ for cloud cost optimization**
+## Features
 
-**Star this repo if you find it useful!** ⭐
+- **Multi-cloud catalog** — AWS, GCP, Azure instance types in unified tables (`cloud_instances`, `cloud_pricing`).
+- **Dashboard & tools** — Cost calculator, comparisons, recommendations, spot intelligence.
+- **CloudCost AI™** — Groq chat (`GROQ_API_KEY`); optional if unset.
+- **API-first** — Swagger UI at `/docs`, `/openapi.json` on the API host.
+- **Deploy-friendly** — Backend on **Render** (PostgreSQL); UI on **GitHub Pages** or any static host; **Redis optional**.
+
+---
+
+## Quick start (local)
+
+```bash
+./setup-local.sh          # Podman + Postgres + Redis + venv + migrations
+./start-backend.sh        # API → http://localhost:8801
+./start-frontend.sh       # UI  → http://127.0.0.1:8080 (proxies /api to API)
+```
+
+- **API docs:** http://localhost:8801/docs  
+- **Demo data:** `python scripts/seed_demo_cloud_data.py` if the catalog is empty.
+
+**Groq:** set `GROQ_API_KEY` in `.env` (see `.env.example`).
+
+---
+
+## Repository layout
+
+```
+cloudcost-optimizer/
+├── src/                 # FastAPI app, services, models
+├── frontend/            # React + Vite
+├── alembic/             # DB migrations
+├── scripts/             # Data fetch, seed, export_openapi.py
+├── docs/
+│   ├── API.md           # API spec index
+│   └── openapi.json     # Generated OpenAPI (committed for review/CI)
+├── tests/               # pytest
+├── render.yaml          # Render Blueprint
+└── .github/workflows/   # GitHub Pages deploy for frontend
+```
+
+---
+
+## API specification
+
+- **Interactive:** `https://<your-api-host>/docs` (also `/swagger` → `/docs`)  
+- **Machine-readable:** [docs/openapi.json](docs/openapi.json)  
+- **Details:** [docs/API.md](docs/API.md)
+
+Regenerate after route changes:
+
+```bash
+python scripts/export_openapi.py
+```
+
+---
+
+## Configuration
+
+Copy `.env.example` → `.env`. Important keys:
+
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | Async Postgres URL (`postgresql+asyncpg://...`) |
+| `CORS_ORIGINS` | Comma-separated origins (no spaces) — **required** for GitHub Pages → API |
+| `GROQ_API_KEY` | CloudCost AI chat |
+| `DATA_FETCH_PROFILE` | `lean` (default) vs `full` for data scripts |
+
+**Redis:** omit `REDIS_URL` on Render if you do not use Redis; the API runs without cache.
+
+---
+
+## Testing & quality
+
+```bash
+./test-local.sh           # pytest + frontend lint + production build
+# or
+pytest
+cd frontend && npm run lint && npm run build
+```
+
+---
+
+## Deployment (summary)
+
+| Layer | Option |
+|-------|--------|
+| **API + DB** | [Render](https://render.com) with `render.yaml` or manual Web Service + Postgres |
+| **Static UI** | GitHub Actions → GitHub Pages (`.github/workflows/deploy.yml`) |
+| **Env** | Set `VITE_API_URL` in the Pages workflow (or repo variable) to your real API URL |
+
+Production checklist: `CORS_ORIGINS` includes your Pages origin (`https://<user>.github.io`), `SECRET_KEY` set, `DEBUG=false`, `ENVIRONMENT=production`.
+
+---
+
+## Security notes
+
+- **UI auth** is a **demo** (localStorage). There is **no server-side JWT** in this repo yet — do not market enterprise auth until implemented.
+- CORS, parameterized SQL, and env-based secrets are used; rotate any leaked keys immediately.
+
+---
+
+## Contributing
+
+1. Branch from `main` (e.g. `feature/...`).  
+2. Run `./test-local.sh` or equivalent.  
+3. Keep PRs focused; update `docs/openapi.json` if you change routes.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+---
+
+**Questions?** Open an issue or extend the **PRD** for internal planning.
