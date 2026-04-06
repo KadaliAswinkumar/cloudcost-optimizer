@@ -36,8 +36,14 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         """Process request and apply rate limiting."""
         
-        # Skip rate limiting for health checks
-        if request.url.path.startswith("/health"):
+        # Skip rate limiting for health checks and API documentation
+        path = request.url.path
+        if path.startswith("/health") or path in (
+            "/docs",
+            "/redoc",
+            "/openapi.json",
+            "/swagger",
+        ) or path.startswith("/docs/") or path.startswith("/redoc/"):
             return await call_next(request)
         
         # Get client identifier (IP address)

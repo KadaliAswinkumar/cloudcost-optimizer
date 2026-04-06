@@ -10,7 +10,7 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.openapi.utils import get_openapi
 
 from src.core.config import settings
@@ -175,7 +175,11 @@ async def root():
         "service": settings.app_name,
         "version": "1.0.0",
         "description": "AWS Instance Price Optimizer & Recommender",
-        "documentation": "/docs",
+        "documentation": {
+            "swagger_ui": "/docs",
+            "redoc": "/redoc",
+            "openapi_json": "/openapi.json",
+        },
         "health": "/health",
         "endpoints": {
             "instances": "/api/v1/instances",
@@ -184,6 +188,12 @@ async def root():
             "multicloud": "/api/v1/multicloud",
         },
     }
+
+
+@app.get("/swagger", include_in_schema=False)
+async def swagger_redirect():
+    """Alias for Swagger UI (`/docs`)."""
+    return RedirectResponse(url="/docs", status_code=307)
 
 
 # Custom OpenAPI schema

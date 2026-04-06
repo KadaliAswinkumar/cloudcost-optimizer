@@ -4,6 +4,16 @@ The React UI is built with `base: /cloudcost-optimizer/` for **project Pages**:
 
 **Live URL:** `https://<your-github-username>.github.io/cloudcost-optimizer/`
 
+## Swagger UI (API docs on Render)
+
+The backend is FastAPI. Open interactive docs on your API host, for example:
+
+- **Swagger UI:** `https://<your-api-host>/docs` (alias: `/swagger` → redirects to `/docs`)
+- **ReDoc:** `https://<your-api-host>/redoc`
+- **OpenAPI JSON:** `https://<your-api-host>/openapi.json`
+
+Replace `<your-api-host>` with your Render URL (e.g. `cloudcost-api-3uy5.onrender.com`).
+
 ## One-time setup
 
 1. **Repo → Settings → Pages**

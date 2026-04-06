@@ -46,6 +46,8 @@ If Render assigns different service names than `cloudcost-api` / `cloudcost-app`
 curl https://<your-api-host>/health
 ```
 
+**Swagger UI:** `https://<your-api-host>/docs` (also `/swagger` redirects there). **ReDoc:** `/redoc`. **OpenAPI:** `/openapi.json`.
+
 Open the static URL, sign up / log in, and confirm API calls succeed (browser devtools → Network).
 
 Auto-deploy: enable “auto-deploy” on `main` in each service’s settings if you want every push to rebuild.
