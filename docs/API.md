@@ -32,7 +32,7 @@ This writes `docs/openapi.json`. It uses `DEBUG=false` so **debug-only** routes 
 | Multi-cloud | `multicloud` | `GET /multicloud/instances`, `POST /multicloud/recommendations`, `GET /multicloud/providers` |
 | CloudCost AI | `ai` | `POST /ai/chat`, `POST /ai/recommend`, `GET /ai/suggestions` |
 | Spot Intelligence | `spot-intelligence` | `POST /spot-intelligence/analyze`, `GET /spot-intelligence/quick-check` |
-| Infrastructure Intelligence | `intelligence` | `POST /intelligence/organizations`, `POST /intelligence/organizations/{org_id}/connectors`, `POST .../scans`, `GET .../findings`, `POST .../reports` |
+| Infrastructure Intelligence | `intelligence` | `POST /intelligence/organizations`, `POST .../connectors`, `POST .../scans` (**202** + background job), `GET .../scans`, `GET .../findings`, `POST .../reports`, `GET .../reports/{id}/export` |
 
 Design notes: [INFRA_INTELLIGENCE_ARCHITECTURE.md](./INFRA_INTELLIGENCE_ARCHITECTURE.md).
 

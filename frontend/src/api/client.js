@@ -19,6 +19,8 @@ const apiClient = axios.create({
   },
 })
 
+const intelligenceOrgBase = (orgId) => `/api/v1/intelligence/organizations/${orgId}`
+
 // API endpoints
 export const api = {
   // Direct axios methods
@@ -80,6 +82,31 @@ export const api = {
     apiClient.get('/api/v1/spot-intelligence/quick-check', { 
       params: { provider, instance_type: instanceType } 
     }),
+
+  // Infrastructure Intelligence (orgs, connectors, async scans, findings, reports)
+  intelligence: {
+    createOrganization: (body) => apiClient.post('/api/v1/intelligence/organizations', body),
+    getOrganization: (orgId) => apiClient.get(`/api/v1/intelligence/organizations/${orgId}`),
+    listConnectors: (orgId) => apiClient.get(`${intelligenceOrgBase(orgId)}/connectors`),
+    createConnector: (orgId, body) => apiClient.post(`${intelligenceOrgBase(orgId)}/connectors`, body),
+    triggerScan: (orgId, connectorId, body) =>
+      apiClient.post(
+        `${intelligenceOrgBase(orgId)}/connectors/${connectorId}/scans`,
+        body ?? {},
+      ),
+    listScans: (orgId, params) => apiClient.get(`${intelligenceOrgBase(orgId)}/scans`, { params }),
+    getScan: (orgId, scanId) => apiClient.get(`${intelligenceOrgBase(orgId)}/scans/${scanId}`),
+    listFindings: (orgId, params) => apiClient.get(`${intelligenceOrgBase(orgId)}/findings`, { params }),
+    createReport: (orgId, body) => apiClient.post(`${intelligenceOrgBase(orgId)}/reports`, body),
+    /** Absolute URL for opening report JSON export in a new tab (GitHub Pages + cross-origin API). */
+    exportReportUrl: (orgId, reportId) => {
+      const path = `${intelligenceOrgBase(orgId)}/reports/${reportId}/export`
+      const base = String(apiClient.defaults.baseURL || '').replace(/\/$/, '')
+      if (base) return `${base}${path}`
+      if (typeof window !== 'undefined') return `${window.location.origin}${path}`
+      return path
+    },
+  },
 }
 
 export default apiClient

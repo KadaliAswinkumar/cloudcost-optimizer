@@ -102,6 +102,12 @@ class Settings(BaseSettings):
     # If unset, `field_encryption` derives a key from SECRET_KEY (dev only).
     infra_encryption_key: Optional[str] = Field(default=None, validation_alias="INFRA_ENCRYPTION_KEY")
 
+    # When true, scan runs inline after the scan row is committed (used in pytest for determinism).
+    intelligence_scan_synchronous: bool = Field(
+        default=False,
+        validation_alias="INTELLIGENCE_SCAN_SYNCHRONOUS",
+    )
+
     log_level: str = Field(default="INFO")
     log_format: str = Field(default="json")
 

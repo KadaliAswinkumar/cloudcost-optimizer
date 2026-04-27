@@ -1,35 +1,39 @@
-"""Run a scan job: collect graph, persist snapshot, evaluate rules, persist findings."""
+"""Run a scan job: decrypt creds, collect graph, snapshot, rules, findings, optional webhooks."""
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import Any, Dict
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.field_encryption import decrypt_string
 from src.models.infra_intelligence import (
     AssetSnapshot,
     CloudConnector,
     InfraFinding,
     ScanJob,
 )
-from src.services.infra_intelligence.collector_stub import build_stub_graph
+from src.services.infra_intelligence.alert_dispatcher import dispatch_webhooks_for_new_findings
+from src.services.infra_intelligence.collector import collect_asset_graph
 from src.services.infra_intelligence.rule_engine import evaluate_graph
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
 
-async def run_scan_job(session: AsyncSession, scan_job_id: str) -> ScanJob:
-    """
-    Execute scan synchronously within the request worker (MVP).
+def _load_connector_credentials(ciphertext: str) -> Dict[str, Any]:
+    try:
+        raw = decrypt_string(ciphertext)
+        data = json.loads(raw)
+        return data if isinstance(data, dict) else {}
+    except (ValueError, json.JSONDecodeError):
+        return {}
 
-    Phase 2: enqueue Celery / separate worker for long-running collectors.
-    """
+
+async def run_scan_job(session: AsyncSession, scan_job_id: str) -> ScanJob:
     result = await session.execute(select(ScanJob).where(ScanJob.id == scan_job_id))
     job = result.scalar_one_or_none()
     if not job:
@@ -52,9 +56,8 @@ async def run_scan_job(session: AsyncSession, scan_job_id: str) -> ScanJob:
     await session.flush()
 
     try:
-        # Real collectors would decrypt credentials and call cloud APIs here.
-        _ = connector.credentials_ciphertext  # noqa: F841 — touch field for future use
-        graph = build_stub_graph(connector.provider)
+        creds = _load_connector_credentials(connector.credentials_ciphertext)
+        graph = await collect_asset_graph(connector.provider, creds)
 
         snapshot = AssetSnapshot(
             scan_job_id=job.id,
@@ -85,6 +88,16 @@ async def run_scan_job(session: AsyncSession, scan_job_id: str) -> ScanJob:
                 )
             )
 
+        await session.flush()
+        fin_res = await session.execute(
+            select(InfraFinding).where(InfraFinding.scan_job_id == job.id)
+        )
+        persisted = list(fin_res.scalars().all())
+        try:
+            await dispatch_webhooks_for_new_findings(session, job.organization_id, persisted)
+        except Exception:
+            logger.warning("alert dispatch skipped due to error", exc_info=True)
+
         job.status = "completed"
         job.completed_at = datetime.utcnow()
         connector.last_scan_at = job.completed_at
@@ -96,6 +109,7 @@ async def run_scan_job(session: AsyncSession, scan_job_id: str) -> ScanJob:
                 "scan_job_id": job.id,
                 "findings": len(raw_findings),
                 "connector_id": connector.id,
+                "mode": graph.get("collection_mode"),
             },
         )
     except Exception as exc:  # noqa: BLE001

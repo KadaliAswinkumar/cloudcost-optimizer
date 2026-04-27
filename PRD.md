@@ -72,7 +72,8 @@
 - **API:** `/api/v1/intelligence/*` — see `docs/API.md` and architecture doc `docs/INFRA_INTELLIGENCE_ARCHITECTURE.md`.  
 - **MVP collectors:** stub graph + sample rules in `src/services/infra_intelligence/`; real provider collectors replace stubs without changing the finding contract.  
 - **Secrets:** connector payloads encrypted at rest via `src/core/field_encryption.py`; production should set **`INFRA_ENCRYPTION_KEY`**.  
-- **Auth gap:** routes currently trust `org_id` in the path for integration tests — **server-side JWT + org membership** is required before enterprise positioning (see `README.md` security notes).
+- **Auth gap:** routes currently trust `org_id` in the path for integration tests — **server-side JWT + org membership** is required before enterprise positioning (see `README.md` security notes).  
+- **Scan execution:** production uses `schedule_scan_job` (asyncio task) after the scan row is committed; pytest sets `INTELLIGENCE_SCAN_SYNCHRONOUS=1` to run `run_scan_job` on the request session (SQLite override).
 
 ---
 

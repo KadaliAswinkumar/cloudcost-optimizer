@@ -1,5 +1,6 @@
 """Tests for Infrastructure Intelligence API."""
 
+import asyncio
 import uuid
 
 import pytest
@@ -7,22 +8,21 @@ from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_intelligence_scan_findings_report(client: AsyncClient) -> None:
+async def test_intelligence_async_scan_findings_report_export(client: AsyncClient) -> None:
     slug = f"acme-{uuid.uuid4().hex[:8]}"
     r = await client.post(
         "/api/v1/intelligence/organizations",
         json={"name": "Acme Test", "slug": slug},
     )
     assert r.status_code == 200, r.text
-    org = r.json()
-    org_id = org["id"]
+    org_id = r.json()["id"]
 
     r2 = await client.post(
         f"/api/v1/intelligence/organizations/{org_id}/connectors",
         json={
             "provider": "aws",
             "display_name": "Primary",
-            "credentials": {"note": "stub — real collectors use role keys"},
+            "credentials": {},
         },
     )
     assert r2.status_code == 200, r2.text
@@ -32,10 +32,24 @@ async def test_intelligence_scan_findings_report(client: AsyncClient) -> None:
         f"/api/v1/intelligence/organizations/{org_id}/connectors/{connector_id}/scans",
         json={"trigger": "manual"},
     )
-    assert r3.status_code == 200, r3.text
+    assert r3.status_code == 202, r3.text
     scan = r3.json()
-    assert scan["status"] == "completed"
     scan_id = scan["id"]
+
+    status = scan["status"]
+    if status not in ("completed", "failed"):
+        for _ in range(80):
+            rs = await client.get(f"/api/v1/intelligence/organizations/{org_id}/scans/{scan_id}")
+            assert rs.status_code == 200, rs.text
+            status = rs.json()["status"]
+            if status in ("completed", "failed"):
+                break
+            await asyncio.sleep(0.05)
+    assert status == "completed", f"scan ended as {status}"
+
+    r_list = await client.get(f"/api/v1/intelligence/organizations/{org_id}/scans")
+    assert r_list.status_code == 200
+    assert any(s["id"] == scan_id for s in r_list.json())
 
     r4 = await client.get(
         f"/api/v1/intelligence/organizations/{org_id}/findings",
@@ -56,8 +70,13 @@ async def test_intelligence_scan_findings_report(client: AsyncClient) -> None:
     assert r5.status_code == 200, r5.text
     report = r5.json()
     assert report["summary_json"]["finding_count"] == len(findings)
+    rid = report["id"]
 
-    r6 = await client.post(
+    r6 = await client.get(f"/api/v1/intelligence/organizations/{org_id}/reports/{rid}/export")
+    assert r6.status_code == 200
+    assert "finding_count" in r6.text
+
+    r7 = await client.post(
         f"/api/v1/intelligence/organizations/{org_id}/alert-rules",
         json={
             "name": "High severity webhook",
@@ -66,7 +85,7 @@ async def test_intelligence_scan_findings_report(client: AsyncClient) -> None:
             "channel_json": {"type": "webhook", "url": "https://example.com/hook"},
         },
     )
-    assert r6.status_code == 200, r6.text
-    r7 = await client.get(f"/api/v1/intelligence/organizations/{org_id}/alert-rules")
-    assert r7.status_code == 200
-    assert len(r7.json()) == 1
+    assert r7.status_code == 200, r7.text
+    r8 = await client.get(f"/api/v1/intelligence/organizations/{org_id}/alert-rules")
+    assert r8.status_code == 200
+    assert len(r8.json()) == 1

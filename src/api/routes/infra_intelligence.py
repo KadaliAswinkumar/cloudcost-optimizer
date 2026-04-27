@@ -7,10 +7,12 @@ from __future__ import annotations
 import json
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.core.database import get_db
 from src.core.field_encryption import encrypt_string
 from src.models.infra_intelligence import (
@@ -34,10 +36,29 @@ from src.schemas.infra_intelligence import (
     ScanCreate,
     ScanJobOut,
 )
-from src.services.infra_intelligence.report_builder import build_report_summary
+from src.services.infra_intelligence.background_scan import schedule_scan_job
 from src.services.infra_intelligence.scan_service import run_scan_job
+from src.services.infra_intelligence.report_builder import build_report_summary
 
 router = APIRouter(prefix="/intelligence", tags=["Infrastructure Intelligence"])
+
+
+async def _load_report(
+    org_id: str,
+    report_id: str,
+    db: AsyncSession,
+) -> InfraReport:
+    await _get_org(db, org_id)
+    res = await db.execute(
+        select(InfraReport).where(
+            InfraReport.id == report_id,
+            InfraReport.organization_id == org_id,
+        )
+    )
+    report = res.scalar_one_or_none()
+    if not report:
+        raise HTTPException(status_code=404, detail="report not found")
+    return report
 
 
 async def _get_org(session: AsyncSession, org_id: str) -> Organization:
@@ -121,6 +142,7 @@ async def list_connectors(
 @router.post(
     "/organizations/{org_id}/connectors/{connector_id}/scans",
     response_model=ScanJobOut,
+    status_code=202,
 )
 async def trigger_scan(
     org_id: str,
@@ -148,10 +170,33 @@ async def trigger_scan(
     db.add(job)
     await db.flush()
     await db.refresh(job)
+    job_id = job.id
 
-    await run_scan_job(db, job.id)
-    await db.refresh(job)
-    return job
+    if settings.intelligence_scan_synchronous:
+        # Same DB session as the request (required for tests that override get_db with SQLite).
+        await run_scan_job(db, job_id)
+    else:
+        await db.commit()
+        schedule_scan_job(job_id)
+
+    res = await db.execute(select(ScanJob).where(ScanJob.id == job_id))
+    return res.scalar_one()
+
+
+@router.get("/organizations/{org_id}/scans", response_model=List[ScanJobOut])
+async def list_scans(
+    org_id: str,
+    db: AsyncSession = Depends(get_db),
+    connector_id: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+) -> List[ScanJob]:
+    await _get_org(db, org_id)
+    q = select(ScanJob).where(ScanJob.organization_id == org_id)
+    if connector_id:
+        q = q.where(ScanJob.cloud_connector_id == connector_id)
+    q = q.order_by(ScanJob.created_at.desc()).limit(limit)
+    res = await db.execute(q)
+    return list(res.scalars().all())
 
 
 @router.get("/organizations/{org_id}/scans/{scan_id}", response_model=ScanJobOut)
@@ -241,17 +286,24 @@ async def get_report(
     report_id: str,
     db: AsyncSession = Depends(get_db),
 ) -> InfraReport:
-    await _get_org(db, org_id)
-    res = await db.execute(
-        select(InfraReport).where(
-            InfraReport.id == report_id,
-            InfraReport.organization_id == org_id,
-        )
+    return await _load_report(org_id, report_id, db)
+
+
+@router.get("/organizations/{org_id}/reports/{report_id}/export")
+async def export_report_json(
+    org_id: str,
+    report_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    report = await _load_report(org_id, report_id, db)
+    body = json.dumps(jsonable_encoder(report.summary_json), indent=2)
+    return Response(
+        content=body,
+        media_type="application/json",
+        headers={
+            "Content-Disposition": f'attachment; filename="infra-report-{report_id}.json"',
+        },
     )
-    report = res.scalar_one_or_none()
-    if not report:
-        raise HTTPException(status_code=404, detail="report not found")
-    return report
 
 
 @router.post("/organizations/{org_id}/alert-rules", response_model=AlertRuleOut)

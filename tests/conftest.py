@@ -2,6 +2,11 @@
 Pytest configuration and fixtures.
 """
 
+import os
+
+# Deterministic infra scans in tests (background asyncio tasks are not reliable under ASGITransport).
+os.environ.setdefault("INTELLIGENCE_SCAN_SYNCHRONOUS", "1")
+
 from typing import AsyncGenerator, Generator
 
 import pytest

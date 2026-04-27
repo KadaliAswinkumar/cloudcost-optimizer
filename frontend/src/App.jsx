@@ -13,6 +13,7 @@ import PriceComparison from './pages/PriceComparison'
 import CostCalculator from './pages/CostCalculator'
 import CloudCostAI from './pages/CloudCostAI'
 import SpotIntelligence from './pages/SpotIntelligence'
+import InfraIntelligence from './pages/InfraIntelligence'
 
 function App() {
   return (
@@ -43,6 +44,13 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <SpotIntelligence />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/infra-intelligence" element={
+            <ProtectedRoute>
+              <Layout>
+                <InfraIntelligence />
               </Layout>
             </ProtectedRoute>
           } />

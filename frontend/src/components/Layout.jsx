@@ -10,13 +10,15 @@ import {
   X,
   Zap,
   LogOut,
-  User
+  User,
+  RadioTower,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Infrastructure Intelligence', href: '/infra-intelligence', icon: RadioTower, highlight: true },
   { name: 'CloudCost AI™', href: '/ai', icon: Sparkles, highlight: true },
   { name: 'Spot Intelligence™', href: '/spot-intelligence', icon: Zap, highlight: true },
   { name: 'Get Recommendations', href: '/recommendations', icon: Sparkles },
