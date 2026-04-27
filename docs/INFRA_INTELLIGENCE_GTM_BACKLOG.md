@@ -47,4 +47,4 @@ Items that strengthen **investor narrative**, **enterprise readiness**, and **ec
 - **Defensibility:** normalized asset graph + rule packs + workflow integrations + proprietary utilization tuning.
 - **Wedge:** start with fast FinOps savings, expand to continuous governance and remediation.
 
-Cross-links: [ARCHITECTURE](./INFRA_INTELLIGENCE_ARCHITECTURE.md), [PHASE1_RULES](./INFRA_INTELLIGENCE_PHASE1_RULES.md), [90_DAY_WAVE](./INFRA_INTELLIGENCE_90_DAY_WAVE.md).
+Cross-links: [ARCHITECTURE](./INFRA_INTELLIGENCE_ARCHITECTURE.md), [PHASE1_RULES](./INFRA_INTELLIGENCE_PHASE1_RULES.md), [1_WEEK_SPRINT](./INFRA_INTELLIGENCE_1_WEEK_SPRINT.md).
