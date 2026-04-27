@@ -98,6 +98,10 @@ class Settings(BaseSettings):
         default="http://localhost:8080,http://127.0.0.1:8080,http://localhost:3000",
     )
 
+    # Optional Fernet key (urlsafe base64) for infra connector secrets at rest.
+    # If unset, `field_encryption` derives a key from SECRET_KEY (dev only).
+    infra_encryption_key: Optional[str] = Field(default=None, validation_alias="INFRA_ENCRYPTION_KEY")
+
     log_level: str = Field(default="INFO")
     log_format: str = Field(default="json")
 

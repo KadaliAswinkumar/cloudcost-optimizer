@@ -28,6 +28,7 @@ from src.api.routes.multicloud import router as multicloud_router
 from src.api.routes.ai import router as ai_router
 from src.api.routes.spot_intelligence import router as spot_intelligence_router
 from src.api.routes.debug import router as debug_router
+from src.api.routes.infra_intelligence import router as infra_intelligence_router
 
 # Configure logging
 logging.basicConfig(
@@ -160,6 +161,7 @@ app.include_router(recommendations_router, prefix="/api/v1")
 app.include_router(multicloud_router, prefix="/api/v1")
 app.include_router(ai_router, prefix="/api/v1")  # CloudCost AI™
 app.include_router(spot_intelligence_router, prefix="/api/v1")  # Spot Intelligence™
+app.include_router(infra_intelligence_router, prefix="/api/v1")
 
 # Only include debug endpoints in development mode
 if settings.debug:
@@ -186,6 +188,7 @@ async def root():
             "pricing": "/api/v1/pricing",
             "recommendations": "/api/v1/recommendations",
             "multicloud": "/api/v1/multicloud",
+            "intelligence": "/api/v1/intelligence",
         },
     }
 

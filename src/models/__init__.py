@@ -13,6 +13,15 @@ from src.models.cloud_provider import (
     GCP_REGIONS,
     AZURE_REGIONS,
 )
+from src.models.infra_intelligence import (
+    AlertRule,
+    AssetSnapshot,
+    CloudConnector,
+    InfraFinding,
+    InfraReport,
+    Organization,
+    ScanJob,
+)
 
 __all__ = [
     # AWS Models
@@ -29,5 +38,13 @@ __all__ = [
     "CloudPricing",
     "GCP_REGIONS",
     "AZURE_REGIONS",
+    # Infrastructure Intelligence
+    "Organization",
+    "CloudConnector",
+    "ScanJob",
+    "AssetSnapshot",
+    "InfraFinding",
+    "InfraReport",
+    "AlertRule",
 ]
 

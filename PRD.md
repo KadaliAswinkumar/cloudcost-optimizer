@@ -66,6 +66,14 @@
 - **GitHub Actions** `.github/workflows/deploy.yml`: build and deploy static site to **GitHub Pages**.  
 - **Documentation:** `README.md` (entry), `PRD.md` (this file), `INVESTOR_PITCH.md`, `docs/API.md`, `docs/openapi.json`.
 
+### 4.6 Infrastructure Intelligence (in progress)
+
+- **Purpose:** connect customer clouds (AWS/GCP/Azure), normalize an **asset graph**, run a **deterministic rule engine**, and surface **findings**, **reports**, and **alert rules** (evaluation loop to follow).  
+- **API:** `/api/v1/intelligence/*` — see `docs/API.md` and architecture doc `docs/INFRA_INTELLIGENCE_ARCHITECTURE.md`.  
+- **MVP collectors:** stub graph + sample rules in `src/services/infra_intelligence/`; real provider collectors replace stubs without changing the finding contract.  
+- **Secrets:** connector payloads encrypted at rest via `src/core/field_encryption.py`; production should set **`INFRA_ENCRYPTION_KEY`**.  
+- **Auth gap:** routes currently trust `org_id` in the path for integration tests — **server-side JWT + org membership** is required before enterprise positioning (see `README.md` security notes).
+
 ---
 
 ## 5. Non-functional requirements

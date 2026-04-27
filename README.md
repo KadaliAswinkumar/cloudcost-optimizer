@@ -21,6 +21,7 @@
 - **Multi-cloud catalog** — AWS, GCP, Azure instance types in unified tables (`cloud_instances`, `cloud_pricing`).
 - **Dashboard & tools** — Cost calculator, comparisons, recommendations, spot intelligence.
 - **CloudCost AI™** — Groq chat (`GROQ_API_KEY`); optional if unset.
+- **Infrastructure Intelligence** — orgs, cloud connectors, scans, findings, reports, alert rules (`/api/v1/intelligence/*`); see `docs/INFRA_INTELLIGENCE_ARCHITECTURE.md`.
 - **API-first** — Swagger UI at `/docs`, `/openapi.json` on the API host.
 - **Deploy-friendly** — Backend on **Render** (PostgreSQL); UI on **GitHub Pages** or any static host; **Redis optional**.
 
