@@ -108,7 +108,7 @@ cd frontend && npm run lint && npm run build
 | **Static UI** | GitHub Actions → GitHub Pages (`.github/workflows/deploy.yml`) |
 | **Env** | Set `VITE_API_URL` in the Pages workflow (or repo variable) to your real API URL |
 
-Production checklist: `CORS_ORIGINS` includes your Pages origin (`https://<user>.github.io`), `SECRET_KEY` set, `DEBUG=false`, `ENVIRONMENT=production`.
+Production checklist: `CORS_ORIGINS` includes your Pages origin (`https://<user>.github.io`), `SECRET_KEY` set, `DEBUG=false`, `ENVIRONMENT=production`. After pulling Infrastructure Intelligence, run **`alembic upgrade head`** on the API database (adds `organizations` and related tables).
 
 **GitHub Pages → Render API:** The dashboard calls the API from the browser. If stats stay on `...` or show an error banner, open DevTools → Network: the `/api/v1/multicloud/stats` request is usually **blocked by CORS**. On the Render web service, set `CORS_ORIGINS` to a comma-separated list (no spaces) that includes **`https://<github-username>.github.io` exactly** — not `https://<user>.github.io/<repo>`, because the browser’s `Origin` header never includes the repo path. Redeploy the API after changing env vars.
 

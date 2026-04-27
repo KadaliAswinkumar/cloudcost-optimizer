@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
@@ -12,6 +13,21 @@ from pydantic import BaseModel, Field, field_validator
 class OrganizationCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     slug: str = Field(..., min_length=2, max_length=80, pattern=r"^[a-z0-9][a-z0-9-]*$")
+
+    @field_validator("slug", mode="before")
+    @classmethod
+    def normalize_slug(cls, v: object) -> str:
+        """Lowercase, allow spaces/underscores from UI, enforce leading alphanumeric."""
+        if v is None:
+            return ""
+        s = str(v).strip().lower()
+        s = re.sub(r"[^a-z0-9-]+", "-", s)
+        s = re.sub(r"-{2,}", "-", s).strip("-")
+        if not s:
+            raise ValueError("slug cannot be empty")
+        if not re.match(r"^[a-z0-9]", s):
+            raise ValueError("slug must start with a letter or digit (e.g. my-company)")
+        return s[:80]
 
 
 class OrganizationOut(BaseModel):

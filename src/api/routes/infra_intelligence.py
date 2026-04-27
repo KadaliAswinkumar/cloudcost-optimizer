@@ -10,6 +10,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
@@ -42,6 +43,11 @@ from src.services.infra_intelligence.report_builder import build_report_summary
 
 router = APIRouter(prefix="/intelligence", tags=["Infrastructure Intelligence"])
 
+_MISSING_INTEL_TABLES = (
+    "Infrastructure Intelligence tables are not in this database yet. "
+    "On the server run: alembic upgrade head (revision infra_intel_20260428 or later)."
+)
+
 
 async def _load_report(
     org_id: str,
@@ -62,7 +68,15 @@ async def _load_report(
 
 
 async def _get_org(session: AsyncSession, org_id: str) -> Organization:
-    res = await session.execute(select(Organization).where(Organization.id == org_id))
+    try:
+        res = await session.execute(select(Organization).where(Organization.id == org_id))
+    except (ProgrammingError, OperationalError) as exc:
+        err = str(exc).lower()
+        if "organizations" in err and (
+            "no such table" in err or "does not exist" in err or "undefinedtable" in err
+        ):
+            raise HTTPException(status_code=503, detail=_MISSING_INTEL_TABLES) from exc
+        raise
     org = res.scalar_one_or_none()
     if not org:
         raise HTTPException(status_code=404, detail="organization not found")
@@ -79,7 +93,17 @@ async def create_organization(
         raise HTTPException(status_code=409, detail="slug already exists")
     org = Organization(name=body.name, slug=body.slug)
     db.add(org)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="slug already exists") from None
+    except (ProgrammingError, OperationalError) as exc:
+        await db.rollback()
+        err = str(exc).lower()
+        if "no such table" in err or "does not exist" in err or "undefinedtable" in err:
+            raise HTTPException(status_code=503, detail=_MISSING_INTEL_TABLES) from exc
+        raise
     await db.refresh(org)
     return org
 

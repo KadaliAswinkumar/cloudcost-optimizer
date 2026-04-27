@@ -18,9 +18,9 @@ import { useAuth } from '../context/AuthContext'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Infrastructure Intelligence', href: '/infra-intelligence', icon: RadioTower, highlight: true },
-  { name: 'CloudCost AI™', href: '/ai', icon: Sparkles, highlight: true },
-  { name: 'Spot Intelligence™', href: '/spot-intelligence', icon: Zap, highlight: true },
+  { name: 'Infrastructure Intelligence', href: '/infra-intelligence', icon: RadioTower },
+  { name: 'CloudCost AI™', href: '/ai', icon: Sparkles },
+  { name: 'Spot Intelligence™', href: '/spot-intelligence', icon: Zap },
   { name: 'Get Recommendations', href: '/recommendations', icon: Sparkles },
   { name: 'Find Instances', href: '/instances', icon: Search },
   { name: 'Compare Clouds', href: '/compare', icon: GitCompare },
@@ -73,19 +73,12 @@ export default function Layout({ children }) {
                         group flex gap-x-3 rounded-xl p-3 text-sm font-medium transition-all duration-200 relative
                         ${isActive 
                           ? 'bg-primary-500/10 text-primary-400 border border-primary-500/20' 
-                          : item.highlight
-                            ? 'bg-gradient-to-r from-purple-500/10 to-blue-500/10 text-white border border-purple-500/20 hover:from-purple-500/20 hover:to-blue-500/20'
-                            : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
                         }
                       `}
                     >
-                      <item.icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-primary-400' : item.highlight ? 'text-purple-400' : 'text-slate-500 group-hover:text-white'}`} />
+                      <item.icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-primary-400' : 'text-slate-500 group-hover:text-white'}`} />
                       {item.name}
-                      {item.highlight && !isActive && (
-                        <span className="ml-auto px-1.5 py-0.5 text-[10px] font-bold rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                          NEW
-                        </span>
-                      )}
                     </Link>
                   </li>
                 )

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { RadioTower, Play, RefreshCw, FileJson, AlertCircle, ChevronRight, X } from 'lucide-react'
 import { api } from '../api/client'
+import { formatApiError } from '../utils/apiError'
 
 const LS_ORG_ID = 'cloudcost_intel_org_id'
 
@@ -72,7 +73,7 @@ export default function InfraIntelligence() {
 
   useEffect(() => {
     if (!orgId) return
-    loadConnectors().catch((e) => setPageError(e.response?.data?.detail || e.message))
+    loadConnectors().catch((e) => setPageError(formatApiError(e)))
     loadScans().catch(() => {})
   }, [orgId, loadConnectors, loadScans])
 
@@ -110,7 +111,7 @@ export default function InfraIntelligence() {
       localStorage.setItem(LS_ORG_ID, data.id)
       setOrgId(data.id)
     } catch (e) {
-      setPageError(e.response?.data?.detail || e.message)
+      setPageError(formatApiError(e))
     } finally {
       setBusy(false)
     }
@@ -133,7 +134,7 @@ export default function InfraIntelligence() {
       })
       await loadConnectors()
     } catch (e) {
-      setPageError(e.message || e.response?.data?.detail || String(e))
+      setPageError(formatApiError(e))
     } finally {
       setBusy(false)
     }
@@ -158,7 +159,7 @@ export default function InfraIntelligence() {
       setActiveScan(data)
       await pollScan(data.id)
     } catch (e) {
-      setPageError(e.message || e.response?.data?.detail || String(e))
+      setPageError(formatApiError(e))
     } finally {
       setBusy(false)
     }
@@ -180,7 +181,7 @@ export default function InfraIntelligence() {
       })
       setReportExportUrl(api.intelligence.exportReportUrl(orgId, data.id))
     } catch (e) {
-      setPageError(e.response?.data?.detail || e.message)
+      setPageError(formatApiError(e))
     } finally {
       setBusy(false)
     }
