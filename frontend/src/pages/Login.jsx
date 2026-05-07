@@ -6,7 +6,6 @@ import {
   Lock, 
   ArrowRight, 
   Loader2,
-  Sparkles,
   Eye,
   EyeOff
 } from 'lucide-react'
@@ -51,20 +50,6 @@ export default function Login() {
     } finally {
       setLoading(false)
     }
-  }
-
-  // Demo quick login
-  const handleDemoLogin = async () => {
-    setLoading(true)
-    await new Promise(resolve => setTimeout(resolve, 800))
-    
-    login({
-      email: 'demo@cloudcost.io',
-      name: 'Demo User',
-      id: 'demo-123'
-    })
-    
-    navigate('/dashboard')
   }
 
   return (
@@ -181,29 +166,8 @@ export default function Login() {
             </button>
           </form>
 
-          {/* Demo Login */}
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-700"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-slate-800 text-slate-400">Or try demo</span>
-              </div>
-            </div>
-
-            <button
-              onClick={handleDemoLogin}
-              disabled={loading}
-              className="mt-4 w-full py-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-medium flex items-center justify-center gap-2 transition-all"
-            >
-              <Sparkles className="w-5 h-5 text-yellow-400" />
-              Continue with Demo Account
-            </button>
-          </div>
-
           {/* Sign Up Link */}
-          <p className="text-center text-sm text-slate-400 mt-6">
+          <p className="text-center text-sm text-slate-400 mt-8">
             Don't have an account?{' '}
             <Link to="/signup" className="text-purple-400 hover:text-purple-300 font-medium transition-colors">
               Sign up free

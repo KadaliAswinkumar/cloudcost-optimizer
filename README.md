@@ -13,6 +13,12 @@
 | **[INVESTOR_PITCH.md](INVESTOR_PITCH.md)** | Slide-style narrative for fundraising |
 | **[docs/API.md](docs/API.md)** | How to read the API spec |
 | **[docs/openapi.json](docs/openapi.json)** | OpenAPI 3 schema (`python scripts/export_openapi.py` to refresh) |
+| **[docs/PRODUCT_END_TO_END_GUIDE.md](docs/PRODUCT_END_TO_END_GUIDE.md)** | Complete product walkthrough |
+| **[docs/LEGAL_PRIVACY_POLICY.md](docs/LEGAL_PRIVACY_POLICY.md)** | Privacy policy draft |
+| **[docs/LEGAL_TERMS_OF_SERVICE.md](docs/LEGAL_TERMS_OF_SERVICE.md)** | Terms of service draft |
+| **[docs/SUPPORT_POLICY.md](docs/SUPPORT_POLICY.md)** | Support and SLA policy |
+| **[docs/PATENT_AND_IP_GUIDE.md](docs/PATENT_AND_IP_GUIDE.md)** | Patent and IP founder playbook |
+| **[docs/LICENSE_POLICY.md](docs/LICENSE_POLICY.md)** | Licensing strategy policy |
 
 ---
 

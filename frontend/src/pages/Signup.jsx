@@ -243,9 +243,9 @@ export default function Signup() {
                   />
                   <label className="text-xs text-slate-400">
                     I agree to the{' '}
-                    <a href="#" className="text-purple-400 hover:text-purple-300">Terms of Service</a>
+                    <Link to="/terms" className="text-purple-400 hover:text-purple-300">Terms of Service</Link>
                     {' '}and{' '}
-                    <a href="#" className="text-purple-400 hover:text-purple-300">Privacy Policy</a>
+                    <Link to="/privacy" className="text-purple-400 hover:text-purple-300">Privacy Policy</Link>
                   </label>
                 </div>
 

@@ -15,6 +15,10 @@ import CloudCostAI from './pages/CloudCostAI'
 import SpotIntelligence from './pages/SpotIntelligence'
 import InfraIntelligence from './pages/InfraIntelligence'
 import FinOpsIntelligence from './pages/FinOpsIntelligence'
+import SavingsReadiness from './pages/SavingsReadiness'
+import PrivacyPolicy from './pages/PrivacyPolicy'
+import TermsOfService from './pages/TermsOfService'
+import SupportCenter from './pages/SupportCenter'
 
 function App() {
   return (
@@ -25,6 +29,9 @@ function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/support" element={<SupportCenter />} />
           
           {/* Protected Routes - All inside Layout */}
           <Route path="/dashboard" element={
@@ -59,6 +66,13 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <FinOpsIntelligence />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/readiness" element={
+            <ProtectedRoute>
+              <Layout>
+                <SavingsReadiness />
               </Layout>
             </ProtectedRoute>
           } />

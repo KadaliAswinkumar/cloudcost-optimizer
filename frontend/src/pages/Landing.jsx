@@ -1,88 +1,42 @@
 import { Link } from 'react-router-dom'
-import { 
-  ArrowRight, 
-  Sparkles, 
-  Zap, 
-  Shield, 
-  TrendingDown,
-  Cloud,
-  CheckCircle2,
-  BarChart3,
-  DollarSign,
-  Cpu,
-  Globe,
-  Brain,
-  LineChart
-} from 'lucide-react'
+import { ArrowRight, BarChart3, CheckCircle2, Cloud, Gauge, RadioTower, Shield, Sparkles, Target, TrendingDown } from 'lucide-react'
 
 export default function Landing() {
-  const features = [
-    {
-      icon: Brain,
-      title: 'AI-Powered Recommendations',
-      description: 'Get intelligent instance recommendations based on your workload with our advanced AI engine.',
-      gradient: 'from-purple-500 to-pink-500'
-    },
-    {
-      icon: Zap,
-      title: 'Spot Intelligence™',
-      description: 'Predict interruption risk and maximize savings with real-time spot pricing analysis.',
-      gradient: 'from-yellow-500 to-orange-500'
-    },
-    {
-      icon: Globe,
-      title: 'Multi-Cloud Comparison',
-      description: 'Compare AWS, GCP, and Azure pricing instantly to find the best deals across clouds.',
-      gradient: 'from-blue-500 to-cyan-500'
-    },
-    {
-      icon: TrendingDown,
-      title: 'Cost Optimization',
-      description: 'Reduce your cloud costs by up to 90% with our advanced optimization algorithms.',
-      gradient: 'from-green-500 to-emerald-500'
-    },
+  const pillars = [
     {
       icon: BarChart3,
-      title: 'Real-Time Analytics',
-      description: 'Track pricing trends, interruption rates, and cost savings in real-time dashboards.',
-      gradient: 'from-indigo-500 to-purple-500'
+      title: 'Cost Intelligence (FinOps)',
+      description: 'FOCUS-style cost analytics, action lifecycle, confidence scoring, anomalies, and investor reporting in one view.',
     },
     {
-      icon: Shield,
-      title: 'Risk Assessment',
-      description: 'Understand interruption risks and choose the right balance between cost and reliability.',
-      gradient: 'from-red-500 to-orange-500'
-    }
+      icon: RadioTower,
+      title: 'Infrastructure Intelligence',
+      description: 'Deep AWS collection (EC2/EKS/RDS/ECS/Lambda/S3) with deterministic rules and optimization briefs.',
+    },
+    {
+      icon: Gauge,
+      title: 'Execution Readiness Scoring',
+      description: 'New built-in readiness score estimates your ability to convert opportunities into verified realized savings.',
+    },
   ]
 
-  const stats = [
-    { value: '70-90%', label: 'Cost Savings', icon: DollarSign },
-    { value: '3 Clouds', label: 'Supported', icon: Cloud },
-    { value: '5000+', label: 'Instances', icon: Cpu },
-    { value: 'Real-Time', label: 'Pricing Data', icon: LineChart }
-  ]
-
-  const benefits = [
-    'Compare 5000+ instance types across AWS, GCP, and Azure',
-    'Real-time spot pricing and interruption risk analysis',
-    'AI-powered recommendations tailored to your workload',
-    'Save 70-90% on compute costs with intelligent optimization',
-    'Track historical pricing trends and make data-driven decisions',
-    'Get instant multi-cloud cost comparisons'
+  const highlights = [
+    'Recommendation lifecycle: open -> accepted -> in_progress -> implemented -> verified -> rollback',
+    'Anomaly and regression signals to prevent savings decay after optimization',
+    'Investor export reports with activation, impact, adoption, and confidence KPIs',
+    'Cloud commitment awareness (RI / Savings Plan coverage) in decision support',
+    'All onboarding paths: CSV/FOCUS, AWS CUR, Azure export, GCP billing, API push',
+    'Single command center for founders, finance, engineering, and operations',
   ]
 
   return (
     <div className="min-h-screen bg-slate-900">
-      {/* Hero Section */}
       <div className="relative overflow-hidden">
-        {/* Animated background */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl animate-pulse" />
           <div className="absolute top-40 -left-40 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
-          <div className="absolute bottom-0 right-1/3 w-80 h-80 bg-yellow-500/20 rounded-full blur-3xl animate-pulse delay-2000" />
         </div>
 
-        {/* Navigation */}
         <nav className="relative z-10 container mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -91,256 +45,135 @@ export default function Landing() {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-white">CloudCost Optimizer</h1>
-                <p className="text-xs text-slate-400">AI-Powered Cloud Savings</p>
+                <p className="text-xs text-slate-400">FinOps + CloudOps Execution Platform</p>
               </div>
             </div>
-            
-            <Link
-              to="/login"
-              className="px-6 py-2.5 rounded-lg bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white font-medium transition-all shadow-lg shadow-purple-500/25"
-            >
-              Sign In
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link to="/support" className="px-4 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-sm">Support</Link>
+              <Link
+                to="/login"
+                className="px-5 py-2.5 rounded-lg bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white font-medium transition-all shadow-lg shadow-purple-500/25"
+              >
+                Sign In
+              </Link>
+            </div>
           </div>
         </nav>
 
-        {/* Hero Content */}
         <div className="relative z-10 container mx-auto px-6 py-20 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20 mb-6">
             <Sparkles className="w-4 h-4 text-purple-400" />
-            <span className="text-sm font-medium text-purple-300">Reduce Cloud Costs by 70-90%</span>
+            <span className="text-sm font-medium text-purple-300">Investor-ready savings proof, not just dashboards</span>
           </div>
 
-          <h1 className="text-6xl md:text-7xl font-bold text-white mb-6 leading-tight">
-            Optimize Your <br />
+          <h1 className="text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">
+            Turn Cloud Spend Into <br />
             <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
-              Cloud Costs
+              Verified Savings Momentum
             </span>
-            <br />
-            with AI
           </h1>
 
-          <p className="text-xl text-slate-300 max-w-3xl mx-auto mb-10 leading-relaxed">
-            Compare 5000+ instances across AWS, GCP, and Azure. Get AI-powered recommendations, 
-            real-time spot pricing, and intelligent cost optimization strategies.
+          <p className="text-xl text-slate-300 max-w-4xl mx-auto mb-10 leading-relaxed">
+            CloudCost Optimizer combines FinOps intelligence, infrastructure diagnostics, and recommendation execution
+            workflows so teams can move from cost visibility to measurable savings outcomes.
           </p>
 
-          <div className="flex items-center justify-center gap-4 mb-16">
+          <div className="flex items-center justify-center gap-4 mb-10">
             <Link
               to="/signup"
               className="px-8 py-4 rounded-xl bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white font-semibold text-lg flex items-center gap-2 transition-all shadow-2xl shadow-purple-500/30"
             >
-              Get Started Free
+              Start Free
               <ArrowRight className="w-5 h-5" />
             </Link>
-            
             <a
-              href="#features"
+              href="#platform"
               className="px-8 py-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-semibold text-lg transition-all"
             >
-              Learn More
+              Explore Platform
             </a>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
-            {stats.map((stat, idx) => (
-              <div 
-                key={idx} 
-                className="glass-card p-6 text-center"
-                style={{ animationDelay: `${idx * 100}ms` }}
-              >
-                <stat.icon className="w-8 h-8 text-purple-400 mx-auto mb-2" />
-                <div className="text-3xl font-bold text-white mb-1">{stat.value}</div>
-                <div className="text-sm text-slate-400">{stat.label}</div>
-              </div>
-            ))}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+            <div className="glass-card p-4"><p className="text-2xl font-bold text-white">60-70%</p><p className="text-xs text-slate-400">Potential optimization opportunity</p></div>
+            <div className="glass-card p-4"><p className="text-2xl font-bold text-white">3</p><p className="text-xs text-slate-400">Intelligence layers in one product</p></div>
+            <div className="glass-card p-4"><p className="text-2xl font-bold text-white">5+</p><p className="text-xs text-slate-400">Onboarding paths supported</p></div>
+            <div className="glass-card p-4"><p className="text-2xl font-bold text-white">E2E</p><p className="text-xs text-slate-400">Action-to-verification tracking</p></div>
           </div>
         </div>
       </div>
 
-      {/* Features Section */}
-      <div id="features" className="container mx-auto px-6 py-20">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-white mb-4">
-            Everything You Need to <span className="text-purple-400">Save Money</span>
-          </h2>
-          <p className="text-lg text-slate-400 max-w-2xl mx-auto">
-            Powerful tools and insights to optimize your cloud infrastructure costs
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {features.map((feature, idx) => (
-            <div
-              key={idx}
-              className="glass-card p-8 group hover:border-purple-500/30 transition-all duration-300"
-              style={{ animationDelay: `${idx * 100}ms` }}
-            >
-              <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.gradient} bg-opacity-10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                <feature.icon className="w-7 h-7 text-white" />
-              </div>
-              <h3 className="text-xl font-semibold text-white mb-3">{feature.title}</h3>
-              <p className="text-slate-400 leading-relaxed">{feature.description}</p>
+      <div id="platform" className="container mx-auto px-6 py-16">
+        <h2 className="text-4xl font-bold text-white text-center mb-12">Platform Pillars</h2>
+        <div className="grid md:grid-cols-3 gap-6">
+          {pillars.map((item) => (
+            <div key={item.title} className="glass-card p-6">
+              <item.icon className="w-7 h-7 text-primary-300 mb-3" />
+              <h3 className="text-xl font-semibold text-white mb-2">{item.title}</h3>
+              <p className="text-slate-400">{item.description}</p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Why Choose Us */}
-      <div className="bg-slate-800/50 py-20">
-        <div className="container mx-auto px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <h2 className="text-4xl font-bold text-white mb-6">
-                Why CloudCost Optimizer?
-              </h2>
-              <p className="text-lg text-slate-300 mb-8">
-                Stop overpaying for cloud resources. Our AI-powered platform analyzes thousands of 
-                instance configurations across AWS, GCP, and Azure to find you the perfect balance 
-                between cost, performance, and reliability.
-              </p>
-              
-              <div className="space-y-4">
-                {benefits.map((benefit, idx) => (
-                  <div key={idx} className="flex items-start gap-3 animate-fade-in" style={{ animationDelay: `${idx * 100}ms` }}>
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center mt-0.5">
-                      <CheckCircle2 className="w-4 h-4 text-green-400" />
-                    </div>
-                    <span className="text-slate-300">{benefit}</span>
-                  </div>
-                ))}
-              </div>
-
-              <Link
-                to="/signup"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-purple-500 hover:bg-purple-600 text-white font-medium mt-8 transition-all"
-              >
-                Start Optimizing Now
-                <ArrowRight className="w-5 h-5" />
-              </Link>
-            </div>
-
-            <div className="relative">
-              <div className="glass-card p-8">
-                <div className="space-y-4">
-                  {/* Mock UI Preview */}
-                  <div className="flex items-center justify-between p-4 rounded-lg bg-slate-700/50">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center">
-                        <Zap className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-white">AWS m5.xlarge</div>
-                        <div className="text-xs text-slate-400">Spot Instance</div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-bold text-green-400">-87%</div>
-                      <div className="text-xs text-slate-500">savings</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 rounded-lg bg-slate-700/50">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                        <Cloud className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-white">GCP n2-standard-4</div>
-                        <div className="text-xs text-slate-400">On-Demand</div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-bold text-white">$124/mo</div>
-                      <div className="text-xs text-slate-500">cheapest</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 rounded-lg bg-slate-700/50">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                        <Brain className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-white">AI Recommendation</div>
-                        <div className="text-xs text-slate-400">Best for your workload</div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-bold text-purple-400">Spot</div>
-                      <div className="text-xs text-slate-500">low risk</div>
-                    </div>
-                  </div>
-
-                  <div className="p-4 rounded-lg bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-300">Monthly Savings</span>
-                      <span className="text-2xl font-bold text-green-400">$2,847</span>
-                    </div>
-                  </div>
+      <div className="bg-slate-800/40 py-16">
+        <div className="container mx-auto px-6 grid lg:grid-cols-2 gap-8 items-start">
+          <div>
+            <h2 className="text-3xl font-bold text-white mb-4">What makes this different</h2>
+            <p className="text-slate-300 mb-6">
+              Most tools stop at recommendations. We continue through execution, verification, and investor-grade outcome reporting.
+            </p>
+            <div className="space-y-3">
+              {highlights.map((point) => (
+                <div key={point} className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5" />
+                  <p className="text-slate-300">{point}</p>
                 </div>
-              </div>
-
-              {/* Floating badge */}
-              <div className="absolute -top-4 -right-4 px-4 py-2 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 text-sm font-bold text-slate-900 shadow-lg">
-                Save 90%
-              </div>
+              ))}
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* CTA Section */}
-      <div className="container mx-auto px-6 py-20">
-        <div className="glass-card p-12 text-center relative overflow-hidden">
-          {/* Background decoration */}
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10" />
-          
-          <div className="relative z-10">
-            <h2 className="text-4xl font-bold text-white mb-4">
-              Ready to Slash Your Cloud Costs?
-            </h2>
-            <p className="text-lg text-slate-300 mb-8 max-w-2xl mx-auto">
-              Join thousands of companies saving millions on cloud infrastructure. 
-              Start optimizing your costs today - completely free.
-            </p>
-            
-            <Link
-              to="/signup"
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white font-semibold text-lg transition-all shadow-2xl shadow-purple-500/30"
-            >
-              <Sparkles className="w-5 h-5" />
-              Get Started Free
-              <ArrowRight className="w-5 h-5" />
-            </Link>
-
-            <p className="text-sm text-slate-500 mt-4">
-              No credit card required • Free forever • Full access to all features
-            </p>
+          <div className="glass-card p-6 space-y-4">
+            <div className="flex items-center justify-between border border-slate-700 rounded-lg p-3">
+              <div className="flex items-center gap-2"><Target className="w-4 h-4 text-emerald-300" /><p className="text-sm text-white">Detected opportunity</p></div>
+              <p className="text-emerald-300 font-semibold">$48,700/mo</p>
+            </div>
+            <div className="flex items-center justify-between border border-slate-700 rounded-lg p-3">
+              <div className="flex items-center gap-2"><TrendingDown className="w-4 h-4 text-sky-300" /><p className="text-sm text-white">Verified savings</p></div>
+              <p className="text-sky-300 font-semibold">$18,300/mo</p>
+            </div>
+            <div className="flex items-center justify-between border border-slate-700 rounded-lg p-3">
+              <div className="flex items-center gap-2"><Shield className="w-4 h-4 text-amber-300" /><p className="text-sm text-white">Open regressions</p></div>
+              <p className="text-amber-300 font-semibold">2 alerts</p>
+            </div>
+            <p className="text-xs text-slate-500">Illustrative sample output from in-product traction dashboards.</p>
           </div>
         </div>
       </div>
 
-      {/* Footer */}
+      <div className="container mx-auto px-6 py-16">
+        <div className="glass-card p-10 text-center">
+          <h2 className="text-4xl font-bold text-white mb-4">Built for founders who need proof, fast</h2>
+          <p className="text-lg text-slate-300 mb-8 max-w-3xl mx-auto">
+            Launch quickly, connect billing data, prioritize actions, and generate investor updates from one operating system.
+          </p>
+          <Link
+            to="/signup"
+            className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white font-semibold text-lg transition-all shadow-2xl shadow-purple-500/30"
+          >
+            Create Account
+            <ArrowRight className="w-5 h-5" />
+          </Link>
+        </div>
+      </div>
+
       <footer className="border-t border-slate-800 py-8">
-        <div className="container mx-auto px-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                <Cloud className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-slate-400 text-sm">
-                © 2026 CloudCost Optimizer. All rights reserved.
-              </span>
-            </div>
-            
-            <div className="flex items-center gap-6 text-sm text-slate-400">
-              <a href="#features" className="hover:text-white transition-colors">Features</a>
-              <a href="#" className="hover:text-white transition-colors">Privacy</a>
-              <a href="#" className="hover:text-white transition-colors">Terms</a>
-              <a href="#" className="hover:text-white transition-colors">Support</a>
-            </div>
+        <div className="container mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+          <span className="text-slate-400 text-sm">© 2026 CloudCost Optimizer. All rights reserved.</span>
+          <div className="flex items-center gap-6 text-sm text-slate-400">
+            <a href="#platform" className="hover:text-white transition-colors">Platform</a>
+            <Link to="/privacy" className="hover:text-white transition-colors">Privacy</Link>
+            <Link to="/terms" className="hover:text-white transition-colors">Terms</Link>
+            <Link to="/support" className="hover:text-white transition-colors">Support</Link>
           </div>
         </div>
       </footer>
