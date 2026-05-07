@@ -60,7 +60,50 @@ export const api = {
       params: { vcpus, memory_gb: memoryGb } 
     }),
   getProviders: () => apiClient.get('/api/v1/multicloud/providers'),
-  
+
+  /** FinOps / FOCUS-style dashboard (demo or live when billing connectors are configured) */
+  getFinopsDashboard: (params) =>
+    apiClient.get('/api/v1/finops/dashboard', { params }),
+  getFinopsRecommendations: (organizationSlug) =>
+    apiClient.get('/api/v1/finops/recommendations', { params: { organization_slug: organizationSlug } }),
+  acceptFinopsRecommendation: (recommendationId, body) =>
+    apiClient.post(`/api/v1/finops/recommendations/${recommendationId}/accept`, body),
+  markFinopsRecommendationInProgress: (recommendationId, body) =>
+    apiClient.post(`/api/v1/finops/recommendations/${recommendationId}/in-progress`, body),
+  implementFinopsRecommendation: (recommendationId, body) =>
+    apiClient.post(`/api/v1/finops/recommendations/${recommendationId}/implemented`, body),
+  verifyFinopsRecommendation: (recommendationId, body) =>
+    apiClient.post(`/api/v1/finops/recommendations/${recommendationId}/verify`, body),
+  rollbackFinopsRecommendation: (recommendationId, body) =>
+    apiClient.post(`/api/v1/finops/recommendations/${recommendationId}/rollback`, body),
+  dismissFinopsRecommendation: (recommendationId, body) =>
+    apiClient.post(`/api/v1/finops/recommendations/${recommendationId}/dismiss`, body),
+  listFinopsOnboardingSources: (organizationSlug) =>
+    apiClient.get('/api/v1/finops/onboarding/sources', { params: { organization_slug: organizationSlug } }),
+  upsertFinopsOnboardingSource: (body) =>
+    apiClient.post('/api/v1/finops/onboarding/sources', body),
+  getFinopsOnboardingHealth: (organizationSlug) =>
+    apiClient.get('/api/v1/finops/onboarding/health', { params: { organization_slug: organizationSlug } }),
+  getFinopsWeeklyDigest: (organizationSlug) =>
+    apiClient.get('/api/v1/finops/growth/weekly-digest', { params: { organization_slug: organizationSlug } }),
+  getFinopsLeaderboard: () => apiClient.get('/api/v1/finops/growth/leaderboard'),
+  getFinopsWhatIf: (body) => apiClient.post('/api/v1/finops/growth/what-if', body),
+  getFinopsAnomalies: (organizationSlug, includeResolved = false) =>
+    apiClient.get('/api/v1/finops/anomalies', {
+      params: { organization_slug: organizationSlug, include_resolved: includeResolved },
+    }),
+  acknowledgeFinopsAnomaly: (anomalyId, body) =>
+    apiClient.post(`/api/v1/finops/anomalies/${anomalyId}/acknowledge`, body),
+  getFinopsInvestorKpis: (organizationSlug) =>
+    apiClient.get('/api/v1/finops/investor/kpis', { params: { organization_slug: organizationSlug } }),
+  getFinopsInvestorReport: (organizationSlug) =>
+    apiClient.get('/api/v1/finops/investor/report', { params: { organization_slug: organizationSlug } }),
+  exportFinopsInvestorReport: (organizationSlug) =>
+    apiClient.get('/api/v1/finops/investor/report/export', {
+      params: { organization_slug: organizationSlug },
+      responseType: 'blob',
+    }),
+
   // CloudCost AI™
   getAIRecommendations: (data) => 
     apiClient.post('/api/v1/ai/recommend', data),
@@ -96,6 +139,10 @@ export const api = {
       ),
     listScans: (orgId, params) => apiClient.get(`${intelligenceOrgBase(orgId)}/scans`, { params }),
     getScan: (orgId, scanId) => apiClient.get(`${intelligenceOrgBase(orgId)}/scans/${scanId}`),
+    getScanCostSummary: (orgId, scanId) =>
+      apiClient.get(`${intelligenceOrgBase(orgId)}/scans/${scanId}/cost-summary`),
+    getOptimizationBrief: (orgId, scanId) =>
+      apiClient.get(`${intelligenceOrgBase(orgId)}/scans/${scanId}/optimization-brief`),
     listFindings: (orgId, params) => apiClient.get(`${intelligenceOrgBase(orgId)}/findings`, { params }),
     createReport: (orgId, body) => apiClient.post(`${intelligenceOrgBase(orgId)}/reports`, body),
     /** Absolute URL for opening report JSON export in a new tab (GitHub Pages + cross-origin API). */

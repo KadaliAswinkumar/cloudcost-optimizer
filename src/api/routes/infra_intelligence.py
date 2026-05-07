@@ -5,7 +5,7 @@ Infrastructure Intelligence API — organizations, connectors, scans, findings, 
 from __future__ import annotations
 
 import json
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.encoders import jsonable_encoder
@@ -18,6 +18,7 @@ from src.core.database import get_db
 from src.core.field_encryption import encrypt_string
 from src.models.infra_intelligence import (
     AlertRule,
+    AssetSnapshot,
     CloudConnector,
     InfraFinding,
     InfraReport,
@@ -49,17 +50,47 @@ _MISSING_INTEL_TABLES = (
 )
 
 
+def _intel_schema_missing(exc: BaseException) -> bool:
+    msg = str(exc).lower()
+    return (
+        "no such table" in msg
+        or ("relation" in msg and "does not exist" in msg)
+        or "undefinedtable" in msg
+    )
+
+
+async def _intel_execute(session: AsyncSession, statement: Any):
+    try:
+        return await session.execute(statement)
+    except (ProgrammingError, OperationalError) as exc:
+        if _intel_schema_missing(exc):
+            await session.rollback()
+            raise HTTPException(status_code=503, detail=_MISSING_INTEL_TABLES) from exc
+        raise
+
+
+async def _intel_flush(session: AsyncSession) -> None:
+    try:
+        await session.flush()
+    except (ProgrammingError, OperationalError) as exc:
+        await session.rollback()
+        if _intel_schema_missing(exc):
+            raise HTTPException(status_code=503, detail=_MISSING_INTEL_TABLES) from exc
+        raise
+
+
 async def _load_report(
     org_id: str,
     report_id: str,
     db: AsyncSession,
 ) -> InfraReport:
     await _get_org(db, org_id)
-    res = await db.execute(
+    res = await _intel_execute(
+        db,
         select(InfraReport).where(
             InfraReport.id == report_id,
             InfraReport.organization_id == org_id,
-        )
+        ),
     )
     report = res.scalar_one_or_none()
     if not report:
@@ -68,19 +99,39 @@ async def _load_report(
 
 
 async def _get_org(session: AsyncSession, org_id: str) -> Organization:
-    try:
-        res = await session.execute(select(Organization).where(Organization.id == org_id))
-    except (ProgrammingError, OperationalError) as exc:
-        err = str(exc).lower()
-        if "organizations" in err and (
-            "no such table" in err or "does not exist" in err or "undefinedtable" in err
-        ):
-            raise HTTPException(status_code=503, detail=_MISSING_INTEL_TABLES) from exc
-        raise
+    res = await _intel_execute(session, select(Organization).where(Organization.id == org_id))
     org = res.scalar_one_or_none()
     if not org:
         raise HTTPException(status_code=404, detail="organization not found")
     return org
+
+
+async def _load_scan(session: AsyncSession, org_id: str, scan_id: str) -> ScanJob:
+    res = await _intel_execute(
+        session,
+        select(ScanJob).where(
+            ScanJob.id == scan_id,
+            ScanJob.organization_id == org_id,
+        ),
+    )
+    job = res.scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=404, detail="scan not found")
+    return job
+
+
+async def _latest_snapshot_for_scan(session: AsyncSession, scan_id: str) -> AssetSnapshot:
+    sres = await _intel_execute(
+        session,
+        select(AssetSnapshot)
+        .where(AssetSnapshot.scan_job_id == scan_id)
+        .order_by(AssetSnapshot.created_at.desc())
+        .limit(1),
+    )
+    snap = sres.scalar_one_or_none()
+    if not snap:
+        raise HTTPException(status_code=404, detail="asset snapshot not found for scan")
+    return snap
 
 
 @router.post("/organizations", response_model=OrganizationOut)
@@ -88,7 +139,7 @@ async def create_organization(
     body: OrganizationCreate,
     db: AsyncSession = Depends(get_db),
 ) -> Organization:
-    existing = await db.execute(select(Organization).where(Organization.slug == body.slug))
+    existing = await _intel_execute(db, select(Organization).where(Organization.slug == body.slug))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="slug already exists")
     org = Organization(name=body.name, slug=body.slug)
@@ -100,8 +151,7 @@ async def create_organization(
         raise HTTPException(status_code=409, detail="slug already exists") from None
     except (ProgrammingError, OperationalError) as exc:
         await db.rollback()
-        err = str(exc).lower()
-        if "no such table" in err or "does not exist" in err or "undefinedtable" in err:
+        if _intel_schema_missing(exc):
             raise HTTPException(status_code=503, detail=_MISSING_INTEL_TABLES) from exc
         raise
     await db.refresh(org)
@@ -113,7 +163,7 @@ async def list_organizations(
     db: AsyncSession = Depends(get_db),
     limit: int = Query(50, ge=1, le=200),
 ) -> List[Organization]:
-    res = await db.execute(select(Organization).order_by(Organization.created_at.desc()).limit(limit))
+    res = await _intel_execute(db, select(Organization).order_by(Organization.created_at.desc()).limit(limit))
     return list(res.scalars().all())
 
 
@@ -144,7 +194,7 @@ async def create_connector(
         status="active",
     )
     db.add(conn)
-    await db.flush()
+    await _intel_flush(db)
     await db.refresh(conn)
     return conn
 
@@ -155,10 +205,11 @@ async def list_connectors(
     db: AsyncSession = Depends(get_db),
 ) -> List[CloudConnector]:
     await _get_org(db, org_id)
-    res = await db.execute(
+    res = await _intel_execute(
+        db,
         select(CloudConnector)
         .where(CloudConnector.organization_id == org_id)
-        .order_by(CloudConnector.created_at.desc())
+        .order_by(CloudConnector.created_at.desc()),
     )
     return list(res.scalars().all())
 
@@ -175,11 +226,12 @@ async def trigger_scan(
     db: AsyncSession = Depends(get_db),
 ) -> ScanJob:
     await _get_org(db, org_id)
-    cres = await db.execute(
+    cres = await _intel_execute(
+        db,
         select(CloudConnector).where(
             CloudConnector.id == connector_id,
             CloudConnector.organization_id == org_id,
-        )
+        ),
     )
     connector = cres.scalar_one_or_none()
     if not connector:
@@ -192,7 +244,7 @@ async def trigger_scan(
         trigger=body.trigger,
     )
     db.add(job)
-    await db.flush()
+    await _intel_flush(db)
     await db.refresh(job)
     job_id = job.id
 
@@ -203,7 +255,7 @@ async def trigger_scan(
         await db.commit()
         schedule_scan_job(job_id)
 
-    res = await db.execute(select(ScanJob).where(ScanJob.id == job_id))
+    res = await _intel_execute(db, select(ScanJob).where(ScanJob.id == job_id))
     return res.scalar_one()
 
 
@@ -219,7 +271,7 @@ async def list_scans(
     if connector_id:
         q = q.where(ScanJob.cloud_connector_id == connector_id)
     q = q.order_by(ScanJob.created_at.desc()).limit(limit)
-    res = await db.execute(q)
+    res = await _intel_execute(db, q)
     return list(res.scalars().all())
 
 
@@ -230,16 +282,37 @@ async def get_scan(
     db: AsyncSession = Depends(get_db),
 ) -> ScanJob:
     await _get_org(db, org_id)
-    res = await db.execute(
-        select(ScanJob).where(
-            ScanJob.id == scan_id,
-            ScanJob.organization_id == org_id,
+    return await _load_scan(db, org_id, scan_id)
+
+
+@router.get("/organizations/{org_id}/scans/{scan_id}/cost-summary")
+async def get_scan_cost_summary(
+    org_id: str,
+    scan_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    """
+    Return 30-day account-level cost summary captured during scan (when CE permissions exist).
+    """
+    await _get_org(db, org_id)
+    await _load_scan(db, org_id, scan_id)
+    snap = await _latest_snapshot_for_scan(db, scan_id)
+    graph = snap.graph_json if isinstance(snap.graph_json, dict) else {}
+    cost_summary = graph.get("cost_summary") if isinstance(graph.get("cost_summary"), dict) else {}
+    if not cost_summary:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "No cost summary found for this scan. Ensure connector IAM includes "
+                "ce:GetCostAndUsage and rerun scan."
+            ),
         )
-    )
-    job = res.scalar_one_or_none()
-    if not job:
-        raise HTTPException(status_code=404, detail="scan not found")
-    return job
+    return {
+        "scan_id": scan_id,
+        "organization_id": org_id,
+        "cost_summary": cost_summary,
+        "collection_errors": graph.get("collection_errors") or [],
+    }
 
 
 @router.get("/organizations/{org_id}/findings", response_model=List[FindingOut])
@@ -257,8 +330,63 @@ async def list_findings(
     if category:
         q = q.where(InfraFinding.category == category)
     q = q.order_by(InfraFinding.created_at.desc()).limit(limit)
-    res = await db.execute(q)
+    res = await _intel_execute(db, q)
     return list(res.scalars().all())
+
+
+@router.get("/organizations/{org_id}/scans/{scan_id}/optimization-brief")
+async def get_scan_optimization_brief(
+    org_id: str,
+    scan_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    """
+    Build a practical optimization brief with savings target, top findings and user questions.
+    """
+    await _get_org(db, org_id)
+    await _load_scan(db, org_id, scan_id)
+    snap = await _latest_snapshot_for_scan(db, scan_id)
+    graph = snap.graph_json if isinstance(snap.graph_json, dict) else {}
+    cost_summary = graph.get("cost_summary") if isinstance(graph.get("cost_summary"), dict) else {}
+    commitment_coverage = cost_summary.get("commitment_coverage") if isinstance(cost_summary, dict) else {}
+    fs = await _intel_execute(
+        db,
+        select(InfraFinding).where(
+            InfraFinding.organization_id == org_id,
+            InfraFinding.scan_job_id == scan_id,
+        ),
+    )
+    findings = list(fs.scalars().all())
+    estimated = sum(float(f.estimated_monthly_savings or 0) for f in findings)
+    high_cost = [f for f in findings if f.category == "cost" and f.severity in {"critical", "high"}]
+    top = sorted(high_cost, key=lambda f: float(f.estimated_monthly_savings or 0), reverse=True)[:8]
+    target_low = round(estimated * 0.45, 2)
+    target_high = round(estimated * 0.72, 2)
+    return {
+        "scan_id": scan_id,
+        "organization_id": org_id,
+        "potential_monthly_savings_usd": round(estimated, 2),
+        "target_savings_range_usd": {"low": target_low, "high": target_high},
+        "target_savings_percent_guidance": "Typical practical range is 20-50%; 60-70% is possible only in heavily inefficient estates.",
+        "commitment_coverage": commitment_coverage or {},
+        "top_actions": [
+            {
+                "rule_id": f.rule_id,
+                "title": f.title,
+                "severity": f.severity,
+                "estimated_monthly_savings_usd": float(f.estimated_monthly_savings or 0),
+                "description": f.description,
+            }
+            for f in top
+        ],
+        "questions_to_ask_customer": [
+            "Which workloads are production-critical vs interruptible (for Spot eligibility)?",
+            "Do you already have Savings Plans/Reserved Instances and their coverage percentages?",
+            "What SLO/SLA constraints prevent rightsizing or turning off resources?",
+            "Can we access CUR/Cost Explorer with monthly granularity and tags for chargeback?",
+            "Which EKS namespaces/services can run on Spot or scale to zero off-hours?",
+        ],
+    }
 
 
 @router.post("/organizations/{org_id}/reports", response_model=ReportOut)
@@ -271,11 +399,12 @@ async def create_report(
     if not body.scan_job_ids:
         raise HTTPException(status_code=400, detail="scan_job_ids must not be empty")
 
-    res = await db.execute(
+    res = await _intel_execute(
+        db,
         select(InfraFinding).where(
             InfraFinding.organization_id == org_id,
             InfraFinding.scan_job_id.in_(body.scan_job_ids),
-        )
+        ),
     )
     rows = list(res.scalars().all())
     payload = [
@@ -299,7 +428,7 @@ async def create_report(
     )
     report = InfraReport(organization_id=org_id, title=body.title, summary_json=summary)
     db.add(report)
-    await db.flush()
+    await _intel_flush(db)
     await db.refresh(report)
     return report
 
@@ -345,7 +474,7 @@ async def create_alert_rule(
         channel_json=body.channel_json,
     )
     db.add(rule)
-    await db.flush()
+    await _intel_flush(db)
     await db.refresh(rule)
     return rule
 
@@ -356,9 +485,10 @@ async def list_alert_rules(
     db: AsyncSession = Depends(get_db),
 ) -> List[AlertRule]:
     await _get_org(db, org_id)
-    res = await db.execute(
+    res = await _intel_execute(
+        db,
         select(AlertRule)
         .where(AlertRule.organization_id == org_id)
-        .order_by(AlertRule.created_at.desc())
+        .order_by(AlertRule.created_at.desc()),
     )
     return list(res.scalars().all())

@@ -62,6 +62,23 @@ async def test_intelligence_async_scan_findings_report_export(client: AsyncClien
     assert "cost" in categories
     assert "security" in categories
     assert "architecture" in categories
+    assert any("cost." in f["rule_id"] for f in findings)
+
+    r_opt = await client.get(
+        f"/api/v1/intelligence/organizations/{org_id}/scans/{scan_id}/optimization-brief"
+    )
+    assert r_opt.status_code == 200, r_opt.text
+    opt = r_opt.json()
+    assert opt["questions_to_ask_customer"]
+    assert opt["potential_monthly_savings_usd"] >= 0
+    assert "target_savings_percent_guidance" in opt
+    assert "commitment_coverage" in opt
+
+    # Stub mode has no Cost Explorer summary unless ce:GetCostAndUsage credentials are present.
+    r_cost = await client.get(
+        f"/api/v1/intelligence/organizations/{org_id}/scans/{scan_id}/cost-summary"
+    )
+    assert r_cost.status_code in (200, 404), r_cost.text
 
     r5 = await client.post(
         f"/api/v1/intelligence/organizations/{org_id}/reports",

@@ -12,12 +12,14 @@ import {
   LogOut,
   User,
   RadioTower,
+  PieChart,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Cost Intelligence (FinOps)', href: '/finops', icon: PieChart },
   { name: 'Infrastructure Intelligence', href: '/infra-intelligence', icon: RadioTower },
   { name: 'CloudCost AI™', href: '/ai', icon: Sparkles },
   { name: 'Spot Intelligence™', href: '/spot-intelligence', icon: Zap },

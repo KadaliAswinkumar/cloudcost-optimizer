@@ -86,6 +86,8 @@ async def get_db_context() -> AsyncGenerator[AsyncSession, None]:
 
 async def init_db():
     """Initialize database tables."""
+    import src.models  # noqa: F401 — register all ORM tables on Base.metadata before create_all
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

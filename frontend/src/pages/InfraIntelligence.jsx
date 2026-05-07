@@ -24,7 +24,7 @@ export default function InfraIntelligence() {
   const [connectors, setConnectors] = useState([])
   const [connectorName, setConnectorName] = useState('Primary AWS')
   const [awsCredsJson, setAwsCredsJson] = useState(
-    '{\n  "access_key_id": "",\n  "secret_access_key": "",\n  "session_token": null,\n  "region": "us-east-1"\n}'
+    '{\n  "access_key_id": "",\n  "secret_access_key": "",\n  "session_token": null,\n  "region": "us-east-1",\n  "auth_mode": "static_keys"\n}'
   )
   const [selectedConnectorId, setSelectedConnectorId] = useState('')
   const [scans, setScans] = useState([])
@@ -32,6 +32,14 @@ export default function InfraIntelligence() {
   const [findings, setFindings] = useState([])
   const [selectedFinding, setSelectedFinding] = useState(null)
   const [reportExportUrl, setReportExportUrl] = useState('')
+  const [costSummary, setCostSummary] = useState(null)
+  const [optimizationBrief, setOptimizationBrief] = useState(null)
+  const [onboardingSources, setOnboardingSources] = useState([])
+  const [onboardingHealth, setOnboardingHealth] = useState(null)
+  const [sourceType, setSourceType] = useState('csv_focus')
+  const [sourceStatus, setSourceStatus] = useState('pending')
+  const [freshnessStatus, setFreshnessStatus] = useState('unknown')
+  const [sourceDetailsJson, setSourceDetailsJson] = useState('{\n  "notes": "initial setup"\n}')
   const [pageError, setPageError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -51,6 +59,16 @@ export default function InfraIntelligence() {
     if (!orgId) return
     const { data } = await api.intelligence.listScans(orgId, { limit: 20 })
     setScans(data)
+  }, [orgId])
+
+  const loadOnboarding = useCallback(async () => {
+    if (!orgId) return
+    const [sourcesRes, healthRes] = await Promise.all([
+      api.listFinopsOnboardingSources(orgId),
+      api.getFinopsOnboardingHealth(orgId),
+    ])
+    setOnboardingSources(sourcesRes.data?.sources || [])
+    setOnboardingHealth(healthRes.data?.summary || null)
   }, [orgId])
 
   const verifyOrg = useCallback(async () => {
@@ -75,7 +93,8 @@ export default function InfraIntelligence() {
     if (!orgId) return
     loadConnectors().catch((e) => setPageError(formatApiError(e)))
     loadScans().catch(() => {})
-  }, [orgId, loadConnectors, loadScans])
+    loadOnboarding().catch(() => {})
+  }, [orgId, loadConnectors, loadScans, loadOnboarding])
 
   const pollScan = async (scanId) => {
     const max = 60
@@ -149,6 +168,8 @@ export default function InfraIntelligence() {
     setBusy(true)
     setActiveScan(null)
     setFindings([])
+    setCostSummary(null)
+    setOptimizationBrief(null)
     try {
       const { data, status } = await api.intelligence.triggerScan(orgId, selectedConnectorId, {
         trigger: 'manual',
@@ -157,7 +178,19 @@ export default function InfraIntelligence() {
         throw new Error(`Unexpected status ${status}`)
       }
       setActiveScan(data)
-      await pollScan(data.id)
+      const finalScan = await pollScan(data.id)
+      if (finalScan?.status === 'completed') {
+        try {
+          const [cs, brief] = await Promise.all([
+            api.intelligence.getScanCostSummary(orgId, data.id),
+            api.intelligence.getOptimizationBrief(orgId, data.id),
+          ])
+          setCostSummary(cs.data?.cost_summary || null)
+          setOptimizationBrief(brief.data || null)
+        } catch {
+          // Cost Explorer permissions may be missing; findings can still be used.
+        }
+      }
     } catch (e) {
       setPageError(formatApiError(e))
     } finally {
@@ -190,6 +223,34 @@ export default function InfraIntelligence() {
   const downloadReport = () => {
     if (!reportExportUrl) return
     window.open(reportExportUrl, '_blank', 'noopener,noreferrer')
+  }
+
+  const saveIngestionPath = async () => {
+    setPageError('')
+    setBusy(true)
+    try {
+      let details = {}
+      try {
+        details = JSON.parse(sourceDetailsJson || '{}')
+      } catch {
+        throw new Error('Onboarding details must be valid JSON.')
+      }
+      await api.upsertFinopsOnboardingSource({
+        organization_slug: orgId,
+        source_type: sourceType,
+        status: sourceStatus,
+        freshness_status: freshnessStatus,
+        confidence_score: sourceStatus === 'connected' ? 0.9 : sourceStatus === 'syncing' ? 0.78 : 0.55,
+        records_ingested: Number(details.records_ingested || 0),
+        details_json: details,
+        error_message: sourceStatus === 'error' ? String(details.error || 'manual setup error') : null,
+      })
+      await loadOnboarding()
+    } catch (e) {
+      setPageError(formatApiError(e))
+    } finally {
+      setBusy(false)
+    }
   }
 
   const findingsSorted = useMemo(
@@ -267,14 +328,148 @@ export default function InfraIntelligence() {
       ) : (
         <>
           <div className="glass-card p-6 space-y-4">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-lg font-semibold text-white">Billing data onboarding paths</h2>
+              <span className="text-xs text-slate-500">for all customer types</span>
+            </div>
+            <p className="text-sm text-slate-400">
+              Set up any ingestion path your customer prefers: CSV/FOCUS upload, AWS CUR, Azure export,
+              GCP billing export, or API push.
+            </p>
+            {onboardingHealth && (
+              <div className="grid sm:grid-cols-4 gap-3">
+                <div className="rounded-lg bg-slate-900/60 border border-slate-800 p-3">
+                  <p className="text-[11px] text-slate-500">Connected</p>
+                  <p className="text-xl text-white font-semibold">{onboardingHealth.connected_sources}</p>
+                </div>
+                <div className="rounded-lg bg-slate-900/60 border border-slate-800 p-3">
+                  <p className="text-[11px] text-slate-500">Fresh sources</p>
+                  <p className="text-xl text-white font-semibold">{onboardingHealth.fresh_sources}</p>
+                </div>
+                <div className="rounded-lg bg-slate-900/60 border border-slate-800 p-3">
+                  <p className="text-[11px] text-slate-500">Total paths</p>
+                  <p className="text-xl text-white font-semibold">{onboardingHealth.total_sources}</p>
+                </div>
+                <div className="rounded-lg bg-slate-900/60 border border-slate-800 p-3">
+                  <p className="text-[11px] text-slate-500">Freshness confidence</p>
+                  <p className="text-xl text-emerald-300 font-semibold">
+                    {Math.round((onboardingHealth.data_freshness_confidence || 0) * 100)}%
+                  </p>
+                </div>
+              </div>
+            )}
+            <div className="grid sm:grid-cols-3 gap-3">
+              <label className="text-xs text-slate-500">
+                Source type
+                <select
+                  value={sourceType}
+                  onChange={(e) => setSourceType(e.target.value)}
+                  className="mt-1 w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-white text-sm"
+                >
+                  <option value="csv_focus">CSV / FOCUS Upload</option>
+                  <option value="aws_cur">AWS CUR</option>
+                  <option value="azure_export">Azure Export</option>
+                  <option value="gcp_billing">GCP Billing Export</option>
+                  <option value="api_push">API Push</option>
+                </select>
+              </label>
+              <label className="text-xs text-slate-500">
+                Status
+                <select
+                  value={sourceStatus}
+                  onChange={(e) => setSourceStatus(e.target.value)}
+                  className="mt-1 w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-white text-sm"
+                >
+                  <option value="pending">pending</option>
+                  <option value="connected">connected</option>
+                  <option value="syncing">syncing</option>
+                  <option value="error">error</option>
+                </select>
+              </label>
+              <label className="text-xs text-slate-500">
+                Freshness
+                <select
+                  value={freshnessStatus}
+                  onChange={(e) => setFreshnessStatus(e.target.value)}
+                  className="mt-1 w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-white text-sm"
+                >
+                  <option value="unknown">unknown</option>
+                  <option value="fresh">fresh</option>
+                  <option value="stale">stale</option>
+                  <option value="lagging">lagging</option>
+                </select>
+              </label>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1">Path details JSON</label>
+              <textarea
+                className="w-full min-h-[96px] rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-white text-xs font-mono"
+                value={sourceDetailsJson}
+                onChange={(e) => setSourceDetailsJson(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={saveIngestionPath}
+                className="px-4 py-2 rounded-xl bg-primary-600/20 border border-primary-500/40 text-primary-200 text-sm hover:bg-primary-600/30 disabled:opacity-50"
+              >
+                Save onboarding path
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => loadOnboarding().catch(() => {})}
+                className="px-4 py-2 rounded-xl bg-slate-800 border border-slate-600 text-white text-sm hover:bg-slate-700 disabled:opacity-50"
+              >
+                Refresh path health
+              </button>
+            </div>
+            {onboardingSources.length > 0 && (
+              <div className="overflow-x-auto rounded-lg border border-slate-800">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-900/90 text-slate-400 border-b border-slate-800">
+                    <tr>
+                      <th className="p-2">Source</th>
+                      <th className="p-2">Status</th>
+                      <th className="p-2">Freshness</th>
+                      <th className="p-2 text-right">Records</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {onboardingSources.map((s) => (
+                      <tr key={s.id} className="border-b border-slate-800/60 text-slate-200">
+                        <td className="p-2">{s.source_type}</td>
+                        <td className="p-2">{s.status}</td>
+                        <td className="p-2">{s.freshness_status}</td>
+                        <td className="p-2 text-right font-mono">{s.records_ingested ?? 0}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="glass-card p-6 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-semibold text-white">AWS connector</h2>
-              <span className="text-xs text-slate-500 font-mono">org {orgId.slice(0, 8)}…</span>
+              <span className="text-xs text-slate-500 font-mono">org {orgId.slice(0, 8)}...</span>
             </div>
             <p className="text-sm text-slate-400">
               Leave keys empty to run a <strong className="text-slate-300">demo stub</strong> scan.
               For live inventory, use IAM keys scoped per <code className="text-xs text-slate-300">docs/AWS_INFRA_INTELLIGENCE_IAM.md</code> in the repo.
             </p>
+            <div className="rounded-lg bg-slate-900/60 border border-slate-800 p-3 text-xs text-slate-300">
+              <p className="font-semibold text-slate-200 mb-1">Ask customer before cost optimization:</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Which workloads are safe for Spot / interruption-tolerant compute?</li>
+                <li>What Savings Plans / RI commitments already exist?</li>
+                <li>Which EKS services can scale down off-hours?</li>
+                <li>Can we enable Cost Explorer (ce:GetCostAndUsage) for 30-day spend analysis?</li>
+              </ul>
+            </div>
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1">Connector name</label>
@@ -445,6 +640,96 @@ export default function InfraIntelligence() {
               </div>
             </div>
           </div>
+
+          {(costSummary || optimizationBrief) && (
+            <div className="grid lg:grid-cols-2 gap-6">
+              <div className="glass-card p-6 space-y-4">
+                <h3 className="text-md font-semibold text-white">Current AWS cost snapshot (30 days)</h3>
+                {!costSummary ? (
+                  <p className="text-sm text-slate-500">
+                    Cost summary unavailable. Add IAM permission <code>ce:GetCostAndUsage</code> and rerun scan.
+                  </p>
+                ) : (
+                  <>
+                    <div className="rounded-lg bg-slate-900/70 border border-slate-800 p-3">
+                      <p className="text-xs text-slate-500">Total unblended cost</p>
+                      <p className="text-2xl font-semibold text-emerald-300">
+                        ${Number(costSummary.total_unblended_cost_usd || 0).toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="overflow-x-auto rounded-lg border border-slate-800">
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-900/90 text-slate-400 border-b border-slate-800">
+                          <tr>
+                            <th className="p-2">Service</th>
+                            <th className="p-2 text-right">Cost (USD)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(costSummary.by_service || []).slice(0, 10).map((svc) => (
+                            <tr key={svc.service} className="border-b border-slate-800/60 text-slate-200">
+                              <td className="p-2">{svc.service}</td>
+                              <td className="p-2 text-right font-mono">
+                                ${Number(svc.unblended_cost_usd || 0).toFixed(2)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="glass-card p-6 space-y-4">
+                <h3 className="text-md font-semibold text-white">Optimization brief</h3>
+                {!optimizationBrief ? (
+                  <p className="text-sm text-slate-500">
+                    Run a completed scan to generate top actions and customer questions.
+                  </p>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-lg bg-slate-900/70 border border-slate-800 p-3">
+                        <p className="text-xs text-slate-500">Potential monthly savings</p>
+                        <p className="text-lg text-emerald-300 font-semibold">
+                          ${Number(optimizationBrief.potential_monthly_savings_usd || 0).toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="rounded-lg bg-slate-900/70 border border-slate-800 p-3">
+                        <p className="text-xs text-slate-500">Target range</p>
+                        <p className="text-sm text-white">
+                          ${Number(optimizationBrief.target_savings_range_usd?.low || 0).toFixed(0)} -
+                          ${Number(optimizationBrief.target_savings_range_usd?.high || 0).toFixed(0)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-slate-900/70 border border-slate-800 p-3">
+                      <p className="text-xs text-slate-500">EC2 commitment coverage (RI + SP)</p>
+                      <p className="text-sm text-white">
+                        RI {Number(optimizationBrief.commitment_coverage?.ec2_reservation_coverage_pct || 0).toFixed(1)}%
+                        {' · '}
+                        SP {Number(optimizationBrief.commitment_coverage?.ec2_savings_plan_coverage_pct || 0).toFixed(1)}%
+                      </p>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      {optimizationBrief.target_savings_percent_guidance}
+                    </p>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 mb-2">
+                        Questions to ask customer before optimization
+                      </p>
+                      <ul className="list-disc pl-5 space-y-1 text-sm text-slate-300">
+                        {(optimizationBrief.questions_to_ask_customer || []).map((q) => (
+                          <li key={q}>{q}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </>
       )}
 

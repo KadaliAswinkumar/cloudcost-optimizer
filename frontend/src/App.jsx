@@ -14,6 +14,7 @@ import CostCalculator from './pages/CostCalculator'
 import CloudCostAI from './pages/CloudCostAI'
 import SpotIntelligence from './pages/SpotIntelligence'
 import InfraIntelligence from './pages/InfraIntelligence'
+import FinOpsIntelligence from './pages/FinOpsIntelligence'
 
 function App() {
   return (
@@ -51,6 +52,13 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <InfraIntelligence />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/finops" element={
+            <ProtectedRoute>
+              <Layout>
+                <FinOpsIntelligence />
               </Layout>
             </ProtectedRoute>
           } />

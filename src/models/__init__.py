@@ -22,6 +22,12 @@ from src.models.infra_intelligence import (
     Organization,
     ScanJob,
 )
+from src.models.finops_traction import (
+    FinOpsActionEvent,
+    FinOpsAnomalyEvent,
+    FinOpsIngestionSource,
+    FinOpsRecommendationAction,
+)
 
 __all__ = [
     # AWS Models
@@ -46,5 +52,10 @@ __all__ = [
     "InfraFinding",
     "InfraReport",
     "AlertRule",
+    # FinOps traction
+    "FinOpsRecommendationAction",
+    "FinOpsIngestionSource",
+    "FinOpsActionEvent",
+    "FinOpsAnomalyEvent",
 ]
 
