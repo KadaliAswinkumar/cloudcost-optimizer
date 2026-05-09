@@ -130,3 +130,67 @@ async def test_finops_action_and_growth_flow(client: AsyncClient) -> None:
     report_export = await client.get("/api/v1/finops/investor/report/export", params={"organization_slug": org})
     assert report_export.status_code == 200, report_export.text
     assert "attachment;" in report_export.headers.get("content-disposition", "")
+
+    copilot_plan = await client.post(
+        "/api/v1/finops/copilot/plan",
+        json={
+            "organization_slug": org,
+            "recommendation_ids": [recommendation_id],
+            "risk_threshold": 0.7,
+            "approval_mode": "auto_if_low_risk",
+            "change_window": "business_hours",
+        },
+    )
+    assert copilot_plan.status_code == 200, copilot_plan.text
+    assert copilot_plan.json()["summary"]["recommendation_count"] >= 1
+
+    copilot_execute = await client.post(
+        "/api/v1/finops/copilot/execute",
+        json={
+            "organization_slug": org,
+            "recommendation_ids": [recommendation_id],
+            "approved": True,
+            "dry_run": False,
+        },
+    )
+    assert copilot_execute.status_code == 200, copilot_execute.text
+    assert copilot_execute.json()["ok"] is True
+
+    forecast = await client.get("/api/v1/finops/forecast", params={"organization_slug": org, "months": 6})
+    assert forecast.status_code == 200, forecast.text
+    assert len(forecast.json()["projection"]) == 6
+
+    commitment = await client.get("/api/v1/finops/commitment/optimizer", params={"organization_slug": org})
+    assert commitment.status_code == 200, commitment.text
+    assert "recommendations" in commitment.json()
+
+    unit_econ = await client.post(
+        "/api/v1/finops/unit-economics",
+        json={
+            "organization_slug": org,
+            "monthly_revenue_usd": 200000,
+            "monthly_active_customers": 1000,
+            "monthly_transactions": 250000,
+        },
+    )
+    assert unit_econ.status_code == 200, unit_econ.text
+    assert "unit_metrics" in unit_econ.json()
+
+    policy = await client.post(
+        "/api/v1/finops/policies/validate",
+        json={
+            "organization_slug": org,
+            "policy_name": "guardrail-v1",
+            "max_unverified_actions": 10,
+            "min_confidence_score": 0.6,
+            "max_risk_score": 0.9,
+            "max_open_anomalies": 20,
+            "required_fresh_sources": 1,
+        },
+    )
+    assert policy.status_code == 200, policy.text
+    assert "passed" in policy.json()
+
+    narrative = await client.get("/api/v1/finops/executive/narrative", params={"organization_slug": org})
+    assert narrative.status_code == 200, narrative.text
+    assert "narrative_markdown" in narrative.json()

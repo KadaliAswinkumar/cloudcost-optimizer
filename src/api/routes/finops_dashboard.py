@@ -81,6 +81,42 @@ class AnomalyAcknowledgeRequest(BaseModel):
     actor: Optional[str] = Field(None, max_length=120)
 
 
+class CopilotPlanRequest(BaseModel):
+    organization_slug: str = Field(..., min_length=2, max_length=80)
+    recommendation_ids: List[str] = Field(..., min_length=1)
+    risk_threshold: float = Field(0.6, ge=0, le=1)
+    approval_mode: Literal["manual", "auto_if_low_risk"] = "manual"
+    change_window: Literal["business_hours", "maintenance_window", "anytime"] = "business_hours"
+    actor: Optional[str] = Field(None, max_length=120)
+
+
+class CopilotExecuteRequest(BaseModel):
+    organization_slug: str = Field(..., min_length=2, max_length=80)
+    recommendation_ids: List[str] = Field(..., min_length=1)
+    approved: bool = Field(False)
+    actor: Optional[str] = Field(None, max_length=120)
+    dry_run: bool = Field(False)
+
+
+class UnitEconomicsRequest(BaseModel):
+    organization_slug: str = Field(..., min_length=2, max_length=80)
+    monthly_revenue_usd: float = Field(..., ge=0)
+    monthly_active_customers: int = Field(..., ge=1)
+    monthly_transactions: int = Field(..., ge=1)
+    cloud_cost_monthly_usd: Optional[float] = Field(None, ge=0)
+    gross_margin_target_pct: float = Field(70.0, ge=1, le=99)
+
+
+class FinOpsPolicyRequest(BaseModel):
+    organization_slug: str = Field(..., min_length=2, max_length=80)
+    policy_name: str = Field(..., min_length=2, max_length=120)
+    max_unverified_actions: int = Field(4, ge=0, le=200)
+    min_confidence_score: float = Field(0.65, ge=0, le=1)
+    max_risk_score: float = Field(0.75, ge=0, le=1)
+    max_open_anomalies: int = Field(8, ge=0, le=1000)
+    required_fresh_sources: int = Field(2, ge=0, le=20)
+
+
 def _schema_missing(exc: BaseException) -> bool:
     msg = str(exc).lower()
     return (
@@ -1169,6 +1205,325 @@ async def what_if_planner(
             }
             for r in rows
         ],
+    }
+
+
+@router.post("/copilot/plan")
+async def copilot_plan(
+    body: CopilotPlanRequest,
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    res = await _finops_execute(
+        db,
+        select(FinOpsRecommendationAction).where(
+            FinOpsRecommendationAction.organization_slug == body.organization_slug,
+            FinOpsRecommendationAction.recommendation_id.in_(body.recommendation_ids),
+        ),
+    )
+    actions = list(res.scalars().all())
+    if not actions:
+        raise HTTPException(status_code=404, detail="no matching recommendations found")
+
+    steps: List[Dict[str, Any]] = []
+    approval_required = body.approval_mode == "manual"
+    for a in actions:
+        risk = float(a.risk_score or 0)
+        confidence = float(a.confidence_score or 0)
+        safe_auto = confidence >= 0.8 and risk <= body.risk_threshold
+        if body.approval_mode == "auto_if_low_risk" and not safe_auto:
+            approval_required = True
+        steps.append(
+            {
+                "recommendation_id": a.recommendation_id,
+                "title": a.title,
+                "status": a.status,
+                "confidence_score": confidence,
+                "risk_score": risk,
+                "blast_radius": a.blast_radius,
+                "estimated_monthly_savings_usd": float(a.estimated_monthly_savings_usd or 0),
+                "safe_for_auto": safe_auto,
+                "proposed_transition": "in_progress" if a.status in {"open", "accepted"} else "implemented",
+                "rollback_available": True,
+            }
+        )
+
+    total_estimated = round(sum(s["estimated_monthly_savings_usd"] for s in steps), 2)
+    return {
+        "organization_slug": body.organization_slug,
+        "plan_meta": {
+            "approval_mode": body.approval_mode,
+            "approval_required": approval_required,
+            "change_window": body.change_window,
+            "risk_threshold": body.risk_threshold,
+            "generated_at": _now_iso(),
+        },
+        "summary": {
+            "recommendation_count": len(steps),
+            "estimated_monthly_savings_usd": total_estimated,
+            "median_risk_score": round(sorted([s["risk_score"] for s in steps])[len(steps) // 2], 3),
+        },
+        "steps": steps,
+    }
+
+
+@router.post("/copilot/execute")
+async def copilot_execute(
+    body: CopilotExecuteRequest,
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    res = await _finops_execute(
+        db,
+        select(FinOpsRecommendationAction).where(
+            FinOpsRecommendationAction.organization_slug == body.organization_slug,
+            FinOpsRecommendationAction.recommendation_id.in_(body.recommendation_ids),
+        ),
+    )
+    actions = list(res.scalars().all())
+    if not actions:
+        raise HTTPException(status_code=404, detail="no matching recommendations found")
+    if not body.approved:
+        return {
+            "ok": False,
+            "dry_run": body.dry_run,
+            "message": "approval required before execution",
+            "candidate_count": len(actions),
+        }
+
+    now = datetime.utcnow()
+    updates = []
+    for action in actions:
+        prev = action.status
+        if prev in {"open", "accepted"}:
+            action.status = "in_progress"
+            action.in_progress_at = action.in_progress_at or now
+        elif prev == "in_progress":
+            action.status = "implemented"
+            action.implemented_at = action.implemented_at or now
+            if action.realized_monthly_savings_usd is None:
+                action.realized_monthly_savings_usd = Decimal(
+                    str(round(float(action.estimated_monthly_savings_usd or 0) * 0.78, 2))
+                )
+        action.actioned_by = body.actor or action.actioned_by
+        updates.append({"recommendation_id": action.recommendation_id, "from": prev, "to": action.status})
+
+    if not body.dry_run:
+        await _finops_flush(db)
+        for u in updates:
+            await _log_action_event(
+                db,
+                organization_slug=body.organization_slug,
+                recommendation_id=u["recommendation_id"],
+                event_type="copilot_executed",
+                actor=body.actor,
+                payload={"from": u["from"], "to": u["to"], "mode": "copilot"},
+            )
+
+    return {
+        "ok": True,
+        "dry_run": body.dry_run,
+        "updated_count": len(updates),
+        "updates": updates,
+    }
+
+
+@router.get("/forecast")
+async def savings_forecast(
+    organization_slug: str = Query(..., description="Tenant slug"),
+    months: int = Query(6, ge=1, le=12),
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    await _ensure_seed_actions(db, organization_slug)
+    now = datetime.utcnow()
+    start = now - timedelta(days=180)
+    res = await _finops_execute(
+        db,
+        select(FinOpsRecommendationAction).where(
+            FinOpsRecommendationAction.organization_slug == organization_slug,
+            FinOpsRecommendationAction.updated_at >= start,
+        ),
+    )
+    actions = list(res.scalars().all())
+
+    monthly_series = []
+    for i in range(5, -1, -1):
+        window_end = now - timedelta(days=i * 30)
+        window_start = window_end - timedelta(days=30)
+        realized = sum(
+            float(a.realized_monthly_savings_usd or 0)
+            for a in actions
+            if a.updated_at and window_start <= a.updated_at < window_end
+        )
+        monthly_series.append(realized)
+
+    avg = sum(monthly_series) / max(len(monthly_series), 1)
+    recent = monthly_series[-1] if monthly_series else 0
+    trend_factor = 1.0
+    if avg > 0:
+        trend_factor = max(min(recent / avg, 1.25), 0.8)
+
+    projected = []
+    for m in range(1, months + 1):
+        growth = 1 + (0.015 * m)
+        projected_value = round(avg * trend_factor * growth, 2)
+        projected.append({"month_offset": m, "projected_realized_savings_usd": projected_value})
+
+    return {
+        "organization_slug": organization_slug,
+        "assumptions": {
+            "baseline_window_months": 6,
+            "trend_factor": round(trend_factor, 3),
+            "monthly_growth_assumption_pct": 1.5,
+        },
+        "historical_monthly_realized_savings_usd": [round(v, 2) for v in monthly_series],
+        "projection": projected,
+    }
+
+
+@router.get("/commitment/optimizer")
+async def commitment_optimizer(
+    organization_slug: str = Query(..., description="Tenant slug"),
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    await _ensure_seed_actions(db, organization_slug)
+    res = await _finops_execute(
+        db,
+        select(FinOpsRecommendationAction).where(FinOpsRecommendationAction.organization_slug == organization_slug),
+    )
+    actions = list(res.scalars().all())
+    est = sum(float(a.estimated_monthly_savings_usd or 0) for a in actions)
+    realized = sum(float(a.realized_monthly_savings_usd or 0) for a in actions)
+    gap = max(est - realized, 0)
+    coverage_estimate = round(min(max(realized / max(est, 1), 0), 1) * 100, 2)
+
+    recommendations = [
+        {
+            "type": "savings_plan",
+            "priority": "high" if coverage_estimate < 55 else "medium",
+            "suggested_monthly_commit_usd": round(gap * 0.35, 2),
+            "reason": "steady baseline workloads are under-committed",
+        },
+        {
+            "type": "reserved_instances",
+            "priority": "medium",
+            "suggested_monthly_commit_usd": round(gap * 0.22, 2),
+            "reason": "long-running compute groups indicate RI suitability",
+        },
+    ]
+    return {
+        "organization_slug": organization_slug,
+        "coverage_estimate_pct": coverage_estimate,
+        "unlocked_savings_gap_usd": round(gap, 2),
+        "recommendations": recommendations,
+    }
+
+
+@router.post("/unit-economics")
+async def unit_economics(
+    body: UnitEconomicsRequest,
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    metrics = await _metrics_from_actions(db, body.organization_slug)
+    cloud_cost = body.cloud_cost_monthly_usd
+    if cloud_cost is None:
+        cloud_cost = float(metrics["impact"]["recommended_savings_usd"]) * 0.42 + 25000
+    revenue = body.monthly_revenue_usd
+    per_customer = cloud_cost / max(body.monthly_active_customers, 1)
+    per_txn = cloud_cost / max(body.monthly_transactions, 1)
+    gross_margin_pct = round(((revenue - cloud_cost) / max(revenue, 1)) * 100.0, 2)
+    status = "healthy" if gross_margin_pct >= body.gross_margin_target_pct else "needs_attention"
+
+    return {
+        "organization_slug": body.organization_slug,
+        "inputs": {
+            "monthly_revenue_usd": revenue,
+            "monthly_cloud_cost_usd": round(cloud_cost, 2),
+            "monthly_active_customers": body.monthly_active_customers,
+            "monthly_transactions": body.monthly_transactions,
+            "gross_margin_target_pct": body.gross_margin_target_pct,
+        },
+        "unit_metrics": {
+            "cloud_cost_per_customer_usd": round(per_customer, 2),
+            "cloud_cost_per_transaction_usd": round(per_txn, 4),
+            "gross_margin_pct": gross_margin_pct,
+            "status": status,
+        },
+    }
+
+
+@router.post("/policies/validate")
+async def validate_finops_policy(
+    body: FinOpsPolicyRequest,
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    metrics = await _metrics_from_actions(db, body.organization_slug)
+    anomalies_payload = await list_anomalies(body.organization_slug, include_resolved=False, db=db)
+    top_actions = metrics["top_actions"]
+    unverified = len([a for a in top_actions if a["status"] not in {"verified", "dismissed"}])
+    low_conf = [a for a in top_actions if float(a["confidence_score"]) < body.min_confidence_score]
+    high_risk = [a for a in top_actions if float(a["risk_score"]) > body.max_risk_score]
+    fresh_sources = int(metrics["activation"]["fresh_sources"] or 0)
+    open_anomalies = len(anomalies_payload["anomalies"])
+
+    violations = []
+    if unverified > body.max_unverified_actions:
+        violations.append(f"unverified_actions={unverified} exceeds limit={body.max_unverified_actions}")
+    if open_anomalies > body.max_open_anomalies:
+        violations.append(f"open_anomalies={open_anomalies} exceeds limit={body.max_open_anomalies}")
+    if fresh_sources < body.required_fresh_sources:
+        violations.append(f"fresh_sources={fresh_sources} below required={body.required_fresh_sources}")
+    if low_conf:
+        violations.append(f"{len(low_conf)} actions are below minimum confidence threshold")
+    if high_risk:
+        violations.append(f"{len(high_risk)} actions are above maximum risk threshold")
+
+    return {
+        "organization_slug": body.organization_slug,
+        "policy_name": body.policy_name,
+        "passed": len(violations) == 0,
+        "violations": violations,
+        "observed": {
+            "unverified_actions": unverified,
+            "open_anomalies": open_anomalies,
+            "fresh_sources": fresh_sources,
+            "low_confidence_actions": len(low_conf),
+            "high_risk_actions": len(high_risk),
+        },
+    }
+
+
+@router.get("/executive/narrative")
+async def executive_narrative(
+    organization_slug: str = Query(..., description="Tenant slug"),
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    metrics = await _metrics_from_actions(db, organization_slug)
+    kpis_payload = await investor_kpis(organization_slug=organization_slug, db=db)
+    anomalies_payload = await list_anomalies(organization_slug=organization_slug, include_resolved=False, db=db)
+    digest = await weekly_digest(organization_slug=organization_slug, db=db)
+    kpis = kpis_payload["kpis"]
+    open_anomalies = len(anomalies_payload["anomalies"])
+    top = metrics["top_actions"][:3]
+
+    lines = [
+        f"{organization_slug} shows gross identified savings of ${kpis['gross_savings_identified_usd']:.2f} and net realized savings of ${kpis['net_realized_savings_usd']:.2f} in the latest period.",
+        f"Recommendation conversion is {kpis['recommendations_accepted']} accepted with {kpis['recommendations_implemented']} implemented and {kpis['recommendations_verified']} verified.",
+        f"Average confidence remains {kpis['average_confidence_score'] * 100:.1f}% with payback period near {kpis['payback_period_months']} months.",
+        f"Open anomaly count is {open_anomalies}; weekly action velocity captured {len(digest['changes'])} updates in the last 7 days.",
+    ]
+    if top:
+        lines.append(
+            "Top priorities this week: " + "; ".join([f"{t['title']} ({t['status']})" for t in top])
+        )
+
+    return {
+        "organization_slug": organization_slug,
+        "generated_at": _now_iso(),
+        "narrative_markdown": "\n\n".join(lines),
+        "supporting_data": {
+            "kpis": kpis,
+            "top_actions": top,
+            "open_anomalies": open_anomalies,
+        },
     }
 
 

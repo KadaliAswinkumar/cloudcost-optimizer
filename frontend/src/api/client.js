@@ -103,6 +103,16 @@ export const api = {
       params: { organization_slug: organizationSlug },
       responseType: 'blob',
     }),
+  getFinopsForecast: (organizationSlug, months = 6) =>
+    apiClient.get('/api/v1/finops/forecast', { params: { organization_slug: organizationSlug, months } }),
+  getFinopsCommitmentOptimizer: (organizationSlug) =>
+    apiClient.get('/api/v1/finops/commitment/optimizer', { params: { organization_slug: organizationSlug } }),
+  getFinopsExecutiveNarrative: (organizationSlug) =>
+    apiClient.get('/api/v1/finops/executive/narrative', { params: { organization_slug: organizationSlug } }),
+  createFinopsCopilotPlan: (body) => apiClient.post('/api/v1/finops/copilot/plan', body),
+  runFinopsCopilotExecute: (body) => apiClient.post('/api/v1/finops/copilot/execute', body),
+  evaluateFinopsPolicy: (body) => apiClient.post('/api/v1/finops/policies/validate', body),
+  calculateFinopsUnitEconomics: (body) => apiClient.post('/api/v1/finops/unit-economics', body),
 
   // CloudCost AI™
   getAIRecommendations: (data) => 

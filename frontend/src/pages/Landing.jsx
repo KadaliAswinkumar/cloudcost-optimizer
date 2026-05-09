@@ -1,7 +1,81 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, BarChart3, CheckCircle2, Cloud, Gauge, RadioTower, Shield, Sparkles, Target, TrendingDown } from 'lucide-react'
+import {
+  ArrowRight,
+  BarChart3,
+  Brain,
+  Calculator,
+  CheckCircle2,
+  Cloud,
+  Gauge,
+  GitCompare,
+  LineChart,
+  RadioTower,
+  Search,
+  Shield,
+  Sparkles,
+  Target,
+  TrendingDown,
+  Zap,
+} from 'lucide-react'
 
 export default function Landing() {
+  const services = [
+    {
+      icon: Sparkles,
+      title: 'AI Recommendations',
+      route: '/recommendations',
+      description: 'Workload-aware recommendations with savings estimates and confidence context.',
+    },
+    {
+      icon: Zap,
+      title: 'Spot Intelligence',
+      route: '/spot-intelligence',
+      description: 'Interruption-aware spot insights to balance savings and reliability.',
+    },
+    {
+      icon: Search,
+      title: 'Instance Finder',
+      route: '/instances',
+      description: 'Find the best-fit instances across providers by CPU, memory, and architecture.',
+    },
+    {
+      icon: GitCompare,
+      title: 'Price Comparison',
+      route: '/compare',
+      description: 'Cross-cloud price comparison to choose the lowest cost path for each workload.',
+    },
+    {
+      icon: Calculator,
+      title: 'Cost Calculator',
+      route: '/calculator',
+      description: 'Quick compute and scenario cost calculations for planning and procurement.',
+    },
+    {
+      icon: BarChart3,
+      title: 'FinOps Intelligence',
+      route: '/finops',
+      description: 'FOCUS-style analytics, lifecycle workflows, anomalies, and investor-grade KPIs.',
+    },
+    {
+      icon: RadioTower,
+      title: 'Infrastructure Intelligence',
+      route: '/infra-intelligence',
+      description: 'Deep cloud inventory scans with rule-driven findings and optimization briefs.',
+    },
+    {
+      icon: Gauge,
+      title: 'Savings Readiness Score',
+      route: '/readiness',
+      description: 'Execution maturity scoring with a concrete 90-day action plan.',
+    },
+    {
+      icon: Brain,
+      title: 'CloudCost AI Assistant',
+      route: '/ai',
+      description: 'Conversational copilot for cost questions, trade-offs, and decision support.',
+    },
+  ]
+
   const pillars = [
     {
       icon: BarChart3,
@@ -27,6 +101,15 @@ export default function Landing() {
     'Cloud commitment awareness (RI / Savings Plan coverage) in decision support',
     'All onboarding paths: CSV/FOCUS, AWS CUR, Azure export, GCP billing, API push',
     'Single command center for founders, finance, engineering, and operations',
+  ]
+
+  const workflow = [
+    'Connect billing + cloud sources',
+    'Detect opportunities and risks',
+    'Prioritize with confidence and blast radius',
+    'Execute and track recommendation lifecycle',
+    'Verify savings and monitor regressions',
+    'Export investor and board-ready reports',
   ]
 
   return (
@@ -63,19 +146,19 @@ export default function Landing() {
         <div className="relative z-10 container mx-auto px-6 py-20 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20 mb-6">
             <Sparkles className="w-4 h-4 text-purple-400" />
-            <span className="text-sm font-medium text-purple-300">Investor-ready savings proof, not just dashboards</span>
+            <span className="text-sm font-medium text-purple-300">Multi-product cloud efficiency suite in one platform</span>
           </div>
 
           <h1 className="text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">
-            Turn Cloud Spend Into <br />
+            One Platform for <br />
             <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
-              Verified Savings Momentum
+              Cloud Cost + Infrastructure Decisions
             </span>
           </h1>
 
           <p className="text-xl text-slate-300 max-w-4xl mx-auto mb-10 leading-relaxed">
-            CloudCost Optimizer combines FinOps intelligence, infrastructure diagnostics, and recommendation execution
-            workflows so teams can move from cost visibility to measurable savings outcomes.
+            CloudCost Optimizer brings Recommendations, Spot Intelligence, Instance Finder, Price Comparison,
+            Cost Calculator, FinOps dashboards, Infra diagnostics, and investor reporting into one execution system.
           </p>
 
           <div className="flex items-center justify-center gap-4 mb-10">
@@ -90,7 +173,7 @@ export default function Landing() {
               href="#platform"
               className="px-8 py-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-semibold text-lg transition-all"
             >
-              Explore Platform
+              Explore Services
             </a>
           </div>
 
@@ -104,6 +187,21 @@ export default function Landing() {
       </div>
 
       <div id="platform" className="container mx-auto px-6 py-16">
+        <h2 className="text-4xl font-bold text-white text-center mb-12">What You Get in the Product</h2>
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5 mb-14">
+          {services.map((service) => (
+            <div key={service.title} className="glass-card p-6 flex flex-col">
+              <service.icon className="w-6 h-6 text-primary-300 mb-3" />
+              <h3 className="text-xl font-semibold text-white">{service.title}</h3>
+              <p className="text-slate-400 mt-2 flex-1">{service.description}</p>
+              <Link to="/login" className="mt-4 text-sm text-primary-300 hover:text-primary-200 inline-flex items-center gap-1">
+                Open in app
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          ))}
+        </div>
+
         <h2 className="text-4xl font-bold text-white text-center mb-12">Platform Pillars</h2>
         <div className="grid md:grid-cols-3 gap-6">
           {pillars.map((item) => (
@@ -146,6 +244,35 @@ export default function Landing() {
               <p className="text-amber-300 font-semibold">2 alerts</p>
             </div>
             <p className="text-xs text-slate-500">Illustrative sample output from in-product traction dashboards.</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-6 py-16">
+        <div className="grid lg:grid-cols-2 gap-8">
+          <div className="glass-card p-6">
+            <h3 className="text-2xl font-semibold text-white mb-4">How the platform works end-to-end</h3>
+            <div className="space-y-2">
+              {workflow.map((step) => (
+                <div key={step} className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-1" />
+                  <p className="text-slate-300">{step}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="glass-card p-6">
+            <h3 className="text-2xl font-semibold text-white mb-4">Enterprise-ready trust and governance</h3>
+            <div className="space-y-3 text-slate-300">
+              <p className="flex items-start gap-2"><Shield className="w-4 h-4 text-sky-300 mt-1" />Role-based access and connector security controls.</p>
+              <p className="flex items-start gap-2"><LineChart className="w-4 h-4 text-sky-300 mt-1" />Audit-friendly action logs and KPI history.</p>
+              <p className="flex items-start gap-2"><Target className="w-4 h-4 text-sky-300 mt-1" />Investor and board reporting exports built in.</p>
+              <p className="mt-4 text-sm text-slate-400">
+                Legal and trust center: <Link to="/privacy" className="text-primary-300 hover:text-primary-200">Privacy</Link>,
+                {' '}<Link to="/terms" className="text-primary-300 hover:text-primary-200">Terms</Link>, and
+                {' '}<Link to="/support" className="text-primary-300 hover:text-primary-200">Support</Link>.
+              </p>
+            </div>
           </div>
         </div>
       </div>
